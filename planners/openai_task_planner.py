@@ -94,6 +94,7 @@ class OpenAITaskPlanner:
     {{
       "tool": "shell",
       "command": "dir /s /b",
+      "outputs": ["project_structure_raw.txt"],
       "reason": "List project files."
     }}
 
@@ -141,6 +142,7 @@ class OpenAITaskPlanner:
           "action": {{
             "tool": "shell",
             "command": "...",
+            "outputs": [],
             "reason": "..."
           }}
         }}
@@ -185,7 +187,9 @@ class OpenAITaskPlanner:
     - If pytest is unavailable, a repair task may suggest: python -m unittest discover
     - Test commands must be read-only verification commands.
     - Do not create destructive test commands.
-    - If tests are run, the shell test task should output test_results.txt.
+    - If tests are run, the shell test task must declare test_results.txt in both:
+      - the task outputs field
+      - the action outputs field
     - If tests are run, create a follow-up artifact_transform task that explains whether the relevant behavior is correct.
     - The test explanation task must use a different output artifact than its input artifact.
     - If the input is test_results.txt, output test_behavior_report.md.
@@ -201,6 +205,8 @@ class OpenAITaskPlanner:
        - outputs should include:
          - project_structure_raw.txt
          - project_structure_summary.md
+       - action.outputs may include:
+         - project_structure_raw.txt
 
     2. Identify the main entry point.
        - tool_hint: artifact_transform
@@ -275,7 +281,9 @@ class OpenAITaskPlanner:
          - python -m pytest
        - If pytest is unavailable, a repair task may suggest:
          - python -m unittest discover
-       - The test shell task must declare this output artifact:
+       - The test shell task must declare this output artifact in the task outputs:
+         - test_results.txt
+       - The test shell task must also declare this output artifact in action.outputs:
          - test_results.txt
        - After running tests, create an artifact_transform task that explains whether the relevant behavior is correct.
        - That analysis task should use:

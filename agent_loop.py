@@ -313,43 +313,98 @@ class AgentLoop:
     def maybe_create_artifact(self, task: Task, action: dict, result: dict):
         """
         Creates useful files from tool results.
-        Saves both raw project structure and a simple interpreted summary.
+
+        Shell tasks with declared outputs write stdout/stderr to artifacts.
+        This happens even if the shell command fails, so later analysis tasks
+        can inspect the failure.
         """
 
-        if not result.get("ok"):
+        if action.get("tool") != "shell":
             return None
 
-        if action.get("tool") == "shell":
-            command = action.get("command", "")
+        command = action.get("command", "")
+        outputs = action.get("outputs", task.outputs)
 
-            if "dir /s /b" in command:
-                raw_output = result.get("stdout", "")
+        stdout = result.get("stdout", "")
+        stderr = result.get("stderr", "")
+        returncode = result.get("returncode")
 
-                raw_artifact_path = self.artifacts.write_text(
-                    "project_structure_raw.txt",
-                    raw_output,
+        # 1. Generic shell output capture.
+        if outputs:
+            content = [
+                "# Shell Command Result",
+                "",
+                "## Command",
+                "",
+                "```bash",
+                command,
+                "```",
+                "",
+                "## Return code",
+                "",
+                f"`{returncode}`",
+                "",
+                "## stdout",
+                "",
+                "```text",
+                stdout,
+                "```",
+                "",
+                "## stderr",
+                "",
+                "```text",
+                stderr,
+                "```",
+                "",
+            ]
+
+            artifact_paths = []
+
+            for output_name in outputs:
+                artifact_path = self.artifacts.write_text(
+                    output_name,
+                    "\n".join(content),
                 )
+                artifact_paths.append(str(artifact_path))
 
-                summary = self.summarize_project_structure(raw_output)
+            self.event_log.write(
+                "artifact_created",
+                {
+                    "task_id": task.id,
+                    "artifacts": artifact_paths,
+                    "reason": "Saved shell command result to declared output artifact.",
+                },
+            )
 
-                summary_artifact_path = self.artifacts.write_text(
-                    "project_structure_summary.md",
-                    summary,
-                )
+        # 2. Special project structure summary generation.
+        if result.get("ok") and "dir /s /b" in command:
+            raw_output = stdout
 
-                self.event_log.write(
-                    "artifact_created",
-                    {
-                        "task_id": task.id,
-                        "artifacts": [
-                            str(raw_artifact_path),
-                            str(summary_artifact_path),
-                        ],
-                        "reason": "Saved raw project structure and generated summary.",
-                    },
-                )
+            raw_artifact_path = self.artifacts.write_text(
+                "project_structure_raw.txt",
+                raw_output,
+            )
 
-                return summary_artifact_path
+            summary = self.summarize_project_structure(raw_output)
+
+            summary_artifact_path = self.artifacts.write_text(
+                "project_structure_summary.md",
+                summary,
+            )
+
+            self.event_log.write(
+                "artifact_created",
+                {
+                    "task_id": task.id,
+                    "artifacts": [
+                        str(raw_artifact_path),
+                        str(summary_artifact_path),
+                    ],
+                    "reason": "Saved raw project structure and generated summary.",
+                },
+            )
+
+            return summary_artifact_path
 
         return None
 

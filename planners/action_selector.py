@@ -16,6 +16,7 @@ class ActionSelector:
             return {
                 "tool": "shell",
                 "command": action_config["command"],
+                "outputs": action_config.get("outputs", task.outputs),
                 "reason": action_config.get(
                     "reason",
                     "Task provided explicit shell action.",

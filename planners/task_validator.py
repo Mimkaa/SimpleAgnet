@@ -43,6 +43,7 @@ class TaskValidator:
         "chmod ",
         "chown ",
         "touch ",
+        "find .",
     ]
 
     ALLOWED_TOOLS = {
