@@ -948,9 +948,13 @@ class AgentLoop:
                 "Special test fallback rule:\n"
                 "- If the failed command was `python -m pytest` and the failure says `No module named pytest`, "
                 "suggest `python -m unittest discover` as the next safe follow-up command.\n"
+                "- If `python -m unittest discover` returns `NO TESTS RAN`, suggest "
+                "`python -m unittest discover -s tests -p \"test*.py\"` as the next safe follow-up command.\n"
                 "- If the failed task was a test task or had `test_results.txt` in its outputs/action outputs, "
                 "the follow-up action must include `outputs`: [`test_results.txt`].\n"
-                "- Do not suggest installing packages automatically yet. Prefer built-in unittest fallback first."
+                "- Do not suggest installing packages automatically yet. Prefer built-in unittest fallback first.\n"
+                "- Do not use Unix shell tools such as `sh`, `find`, `tee`, `grep`, `sed`, or `wc` on Windows.\n"
+                "- Prefer Python-only diagnostics using `python -c \"...\"` when inspection is needed."
             ),
             inputs=[],
             outputs=[
