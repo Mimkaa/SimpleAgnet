@@ -937,13 +937,20 @@ class AgentLoop:
                 '  "action": {\n'
                 '    "tool": "shell",\n'
                 '    "command": "...",\n'
+                '    "outputs": [],\n'
                 '    "reason": "..."\n'
                 "  }\n"
                 "}\n"
                 "```\n\n"
                 "Only suggest a safe diagnostic or verification command. "
                 "Do not suggest destructive commands. "
-                "Do not repeat the exact same failing command unless the failure was expected."
+                "Do not repeat the exact same failing command unless the failure was expected.\n\n"
+                "Special test fallback rule:\n"
+                "- If the failed command was `python -m pytest` and the failure says `No module named pytest`, "
+                "suggest `python -m unittest discover` as the next safe follow-up command.\n"
+                "- If the failed task was a test task or had `test_results.txt` in its outputs/action outputs, "
+                "the follow-up action must include `outputs`: [`test_results.txt`].\n"
+                "- Do not suggest installing packages automatically yet. Prefer built-in unittest fallback first."
             ),
             inputs=[],
             outputs=[
