@@ -10,7 +10,7 @@ class Config:
 
     # This is the project the agent should analyze/work on
     TARGET_PROJECT_DIR: Path = Path(
-        os.environ.get("TARGET_PROJECT_DIR", ".")
+        r"C:\Users\illa9\Downloads\mock_firewall_project\mock_firewall_project"
     ).resolve()
 
     TASKS_FILE: Path = DATA_DIR / "tasks.json"

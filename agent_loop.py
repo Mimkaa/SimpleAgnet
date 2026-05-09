@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from agent.state.task_state import Task
 from agent.planners.action_selector import ActionSelector
-from agent.planners.verifier import Verifier, VerificationResult
+from agent.planners.verifier import Verifier
 from agent.tools.shell_tool import ShellTool
 from agent.tools.file_tool import FileTool
 from agent.analyzers.openai_artifact_analyzer import OpenAIArtifactAnalyzer
@@ -31,13 +31,6 @@ class AgentLoop:
         self.openai_task_planner = OpenAITaskPlanner()
 
     def create_fallback_task_from_goal(self, goal: str) -> Task:
-        """
-        Creates a task from a manual goal.
-
-        This puts exact actions into Task.action so ActionSelector
-        does not need to guess from task titles.
-        """
-
         lower_goal = goal.lower()
 
         if "failing shell command" in lower_goal or "fail shell command" in lower_goal:
@@ -49,6 +42,7 @@ class AgentLoop:
                 action={
                     "tool": "shell",
                     "command": "py -3 -c \"raise Exception('boom')\"",
+                    "outputs": [],
                     "reason": "Intentional verifier failure test.",
                 },
             )
@@ -62,6 +56,7 @@ class AgentLoop:
                 action={
                     "tool": "shell",
                     "command": "py -3 --version",
+                    "outputs": [],
                     "reason": "Intentional verifier PASS test.",
                 },
             )
@@ -73,9 +68,6 @@ class AgentLoop:
         )
 
     def create_goal(self, goal: str) -> List[Task]:
-        # Optional AI planner mode.
-        # Trigger it explicitly with:
-        # goal ai plan: ...
         if goal.lower().startswith("ai plan:"):
             clean_goal = goal[len("ai plan:"):].strip()
 
@@ -100,7 +92,6 @@ class AgentLoop:
             )
             return tasks
 
-        # Existing deterministic workflow mode.
         for workflow in self.workflows:
             if workflow.can_handle(goal):
                 tasks = workflow.create_tasks(goal)
@@ -114,7 +105,6 @@ class AgentLoop:
                 )
                 return tasks
 
-        # Manual fallback mode.
         fallback = self.create_fallback_task_from_goal(goal)
 
         self.task_store.add_tasks([fallback])
@@ -151,10 +141,12 @@ class AgentLoop:
 
     def suggest_next_action(self):
         task = self.next_task()
+
         if not task:
             return "No pending tasks."
 
         action = self.selector.select_action(task)
+
         self.event_log.write(
             "action_suggested",
             {
@@ -162,6 +154,7 @@ class AgentLoop:
                 "action": action,
             },
         )
+
         return action
 
     def run_tool(self, tool_name: str, **kwargs):
@@ -204,15 +197,12 @@ class AgentLoop:
             lower = path.lower()
             filename = lower.split("/")[-1]
 
-            # Common entry points
             if filename in ["main.py", "app.py", "run.py", "cli.py"]:
                 candidate_entry_points.append(path)
 
-            # Source files
             if lower.endswith(".py"):
                 source_files.append(path)
 
-            # Config / dependency files
             if filename in [
                 "requirements.txt",
                 "pyproject.toml",
@@ -225,21 +215,18 @@ class AgentLoop:
             ]:
                 config_files.append(path)
 
-            # Tests
             if "/tests/" in lower or filename.startswith("test_"):
                 test_files.append(path)
 
-            # Data / rules
             if (
-                    "/rules/" in lower
-                    or lower.endswith(".json")
-                    or lower.endswith(".yaml")
-                    or lower.endswith(".yml")
-                    or lower.endswith(".toml")
+                "/rules/" in lower
+                or lower.endswith(".json")
+                or lower.endswith(".yaml")
+                or lower.endswith(".yml")
+                or lower.endswith(".toml")
             ):
                 data_or_rule_files.append(path)
 
-            # Documentation
             if filename.startswith("readme") or lower.endswith(".md"):
                 docs.append(path)
 
@@ -304,21 +291,14 @@ class AgentLoop:
         summary.append("")
         summary.append("- This summary is based on file names and paths only.")
         summary.append(
-            "- Candidate entry points are guessed from common names like `main.py`, `app.py`, `run.py`, and `cli.py`.")
+            "- Candidate entry points are guessed from common names like `main.py`, `app.py`, `run.py`, and `cli.py`."
+        )
         summary.append("- Source-level confirmation requires reading the candidate source files.")
         summary.append("- This summary does not assume the project is an agent project.")
 
         return "\n".join(summary)
 
     def maybe_create_artifact(self, task: Task, action: dict, result: dict):
-        """
-        Creates useful files from tool results.
-
-        Shell tasks with declared outputs write stdout/stderr to artifacts.
-        This happens even if the shell command fails, so later analysis tasks
-        can inspect the failure.
-        """
-
         if action.get("tool") != "shell":
             return None
 
@@ -329,7 +309,6 @@ class AgentLoop:
         stderr = result.get("stderr", "")
         returncode = result.get("returncode")
 
-        # 1. Generic shell output capture.
         if outputs:
             content = [
                 "# Shell Command Result",
@@ -376,16 +355,13 @@ class AgentLoop:
                 },
             )
 
-        # 2. Special project structure summary generation.
         if result.get("ok") and "dir /s /b" in command:
-            raw_output = stdout
-
             raw_artifact_path = self.artifacts.write_text(
                 "project_structure_raw.txt",
-                raw_output,
+                stdout,
             )
 
-            summary = self.summarize_project_structure(raw_output)
+            summary = self.summarize_project_structure(stdout)
 
             summary_artifact_path = self.artifacts.write_text(
                 "project_structure_summary.md",
@@ -411,7 +387,6 @@ class AgentLoop:
     def simple_artifact_analysis(self, task: Task, input_contents: dict, output_name: str) -> str:
         combined_input = "\n\n".join(input_contents.values())
 
-        # Repair report fallback
         if output_name.startswith("repair_report_"):
             return (
                 "# Repair Report\n\n"
@@ -422,9 +397,7 @@ class AgentLoop:
                 f"{task.description}\n"
                 "```\n\n"
                 "## Smallest safe next step\n\n"
-                "- Do not repeat the same failing action automatically.\n"
-                "- Inspect the failure message.\n"
-                "- Identify whether the failure was expected or unexpected.\n"
+                "- The advanced analyzer failed, so no specific repair was generated.\n"
                 "- Run a harmless diagnostic command to confirm the agent can continue.\n\n"
                 "## NEXT_ACTION_JSON\n\n"
                 "```json\n"
@@ -436,6 +409,7 @@ class AgentLoop:
                 '  "action": {\n'
                 '    "tool": "shell",\n'
                 '    "command": "py -3 --version",\n'
+                '    "outputs": [],\n'
                 '    "reason": "Safe diagnostic follow-up after a failed command."\n'
                 "  }\n"
                 "}\n"
@@ -453,10 +427,7 @@ class AgentLoop:
                     "- The file `agent/main.py` initializes config, storage, workflows, the agent loop, and the CLI interface.\n"
                 )
 
-            return (
-                "# Entry Point\n\n"
-                "No obvious entry point found from the available project structure summary.\n"
-            )
+            return "# Entry Point\n\nNo obvious entry point found from the available project structure summary.\n"
 
         if output_name == "core_components.md":
             return (
@@ -496,10 +467,10 @@ class AgentLoop:
             )
 
         return (
-                f"# {task.title}\n\n"
-                "Generated from input artifacts:\n\n"
-                + "\n".join(f"- `{name}`" for name in input_contents.keys())
-                + "\n\nNo specialized analyzer exists for this output yet.\n"
+            f"# {task.title}\n\n"
+            "Generated from input artifacts:\n\n"
+            + "\n".join(f"- `{name}`" for name in input_contents.keys())
+            + "\n\nNo specialized analyzer exists for this output yet.\n"
         )
 
     def transform_artifacts(self, task: Task, action: dict):
@@ -672,9 +643,6 @@ class AgentLoop:
 
         old_content = read_result.get("content", "")
 
-        # If the file is already fixed, treat this as success.
-        # This makes the safe-change tool idempotent:
-        # running it twice should not create a failure.
         already_fixed_patterns = [
             'f"{datetime.utcnow().isoformat()}Z "',
         ]
@@ -748,8 +716,6 @@ class AgentLoop:
                     "fix_name": "Already fixed logger timestamp format",
                 }
 
-        # Known safe fixes.
-        # Each fix is tiny, explicit, and string-based.
         fixes = [
             {
                 "name": "Fix invalid nested logger timestamp f-string",
@@ -779,15 +745,15 @@ class AgentLoop:
 
         if applied_fix is None:
             report = (
-                    "# Change Report\n\n"
-                    "Change was not applied.\n\n"
-                    f"No known safe logger timestamp pattern was found in `{target_file}`.\n\n"
-                    "Known fixed patterns checked:\n\n"
-                    + "\n".join(f"- `{pattern}`" for pattern in already_fixed_patterns)
-                    + "\n\n"
-                      "Known repair patterns checked:\n\n"
-                    + "\n".join(f"- `{fix['old']}`" for fix in fixes)
-                    + "\n"
+                "# Change Report\n\n"
+                "Change was not applied.\n\n"
+                f"No known safe logger timestamp pattern was found in `{target_file}`.\n\n"
+                "Known fixed patterns checked:\n\n"
+                + "\n".join(f"- `{pattern}`" for pattern in already_fixed_patterns)
+                + "\n\n"
+                "Known repair patterns checked:\n\n"
+                + "\n".join(f"- `{fix['old']}`" for fix in fixes)
+                + "\n"
             )
 
             artifact_path = self.artifacts.write_text(outputs[0], report)
@@ -904,13 +870,6 @@ class AgentLoop:
         }
 
     def create_repair_task_from_failure(self, failed_task, action, result, verification):
-        """
-        Creates a follow-up repair/debug task when an action fails.
-
-        This makes the agent loop more autonomous:
-        failure -> new task to investigate/fix the failure.
-        """
-
         stderr = result.get("stderr", "")
         stdout = result.get("stdout", "")
 
@@ -950,9 +909,31 @@ class AgentLoop:
                 "suggest `python -m unittest discover` as the next safe follow-up command.\n"
                 "- If `python -m unittest discover` returns `NO TESTS RAN`, suggest "
                 "`python -m unittest discover -s tests -p \"test*.py\"` as the next safe follow-up command.\n"
+                "- If pytest or unittest fails with `ModuleNotFoundError` for a project module such as `decision`, "
+                "and the source snapshot or structure shows that the module exists inside `src`, suggest running pytest "
+                "with `src` temporarily added to `PYTHONPATH` using this Windows-safe one-process command:\n"
+                "`python -c \"import os, subprocess, sys; "
+                "env=os.environ.copy(); "
+                "env['PYTHONPATH']='src'; "
+                "raise SystemExit(subprocess.run([sys.executable, '-m', 'pytest'], env=env).returncode)\"`.\n"
+                "- This command does not permanently change environment variables and does not modify project files.\n"
+                "- Prefer this temporary `PYTHONPATH=src` pytest command over manually asking the user to set `$env:PYTHONPATH`.\n"
+                "- If pytest is still unavailable, then use built-in unittest fallback commands.\n"
+                "- If unittest discovery fails with `ModuleNotFoundError` for a module such as `decision`, "
+                "and diagnostics show that the module exists inside `src`, suggest this Windows-safe Python command:\n"
+                "`python -c \"import sys, unittest; sys.path.insert(0, 'src'); "
+                "suite=unittest.defaultTestLoader.discover('tests', pattern='test*.py'); "
+                "count=suite.countTestCases(); "
+                "result=unittest.TextTestRunner(verbosity=2).run(suite); "
+                "raise SystemExit(0 if count > 0 and result.wasSuccessful() else 1)\"`.\n"
+                "- This command temporarily adds `src` to `sys.path` only inside that Python process.\n"
+                "- This command must fail if zero tests are discovered.\n"
+                "- If unittest discovery still returns `NO TESTS RAN`, but diagnostics show that a file such as "
+                "`tests/test_rule_engine.py` exists, inspect the test file structure. It may contain pytest-style "
+                "top-level test functions that unittest cannot collect.\n"
                 "- If the failed task was a test task or had `test_results.txt` in its outputs/action outputs, "
                 "the follow-up action must include `outputs`: [`test_results.txt`].\n"
-                "- Do not suggest installing packages automatically yet. Prefer built-in unittest fallback first.\n"
+                "- Do not suggest installing packages automatically yet. Prefer built-in diagnostics first.\n"
                 "- Do not use Unix shell tools such as `sh`, `find`, `tee`, `grep`, `sed`, or `wc` on Windows.\n"
                 "- Prefer Python-only diagnostics using `python -c \"...\"` when inspection is needed."
             ),
@@ -979,10 +960,6 @@ class AgentLoop:
         return repair_task
 
     def extract_next_action_from_report(self, report_text: str):
-        """
-        Extracts the JSON block after NEXT_ACTION_JSON from a repair report.
-        """
-
         marker = "NEXT_ACTION_JSON"
 
         if marker not in report_text:
@@ -1004,28 +981,30 @@ class AgentLoop:
         if not isinstance(data, dict):
             return None
 
-        if "title" not in data:
+        title = data.get("title", "")
+
+        if not title or title.strip() == "...":
             return None
 
-        if "action" not in data:
-            return None
-
-        action = data["action"]
+        action = data.get("action")
 
         if not isinstance(action, dict):
             return None
 
-        if "tool" not in action:
+        tool = action.get("tool", "")
+
+        if not tool or tool.strip() == "...":
             return None
+
+        if tool == "shell":
+            command = action.get("command", "")
+
+            if not command or command.strip() == "...":
+                return None
 
         return data
 
     def create_followup_task_from_repair_report(self, repair_task, repair_result):
-        """
-        Reads the repair report artifact, extracts NEXT_ACTION_JSON,
-        and creates a new executable follow-up task.
-        """
-
         output_name = repair_result.get("output")
 
         if not output_name:
@@ -1084,12 +1063,14 @@ class AgentLoop:
 
     def execute_next_action(self):
         task = self.next_task()
+
         if not task:
-            return {"ok": False, "message": "No pending tasks."}
+            return {
+                "ok": False,
+                "message": "No pending tasks.",
+            }
 
         action = self.selector.select_action(task)
-
-        result = None
 
         if action["tool"] == "shell":
             result = self.run_tool(
@@ -1099,11 +1080,10 @@ class AgentLoop:
             )
 
         elif action["tool"] == "file":
-            path = action["path"]
             result = self.run_tool(
                 "file",
                 action=action["action"],
-                path=path,
+                path=action["path"],
                 content=action.get("content", ""),
             )
 
@@ -1117,7 +1097,10 @@ class AgentLoop:
             result = self.apply_safe_change(task, action)
 
         else:
-            return {"ok": False, "message": "No executable action."}
+            return {
+                "ok": False,
+                "message": "No executable action.",
+            }
 
         self.maybe_create_artifact(task, action, result)
 
@@ -1132,8 +1115,6 @@ class AgentLoop:
         if verification.status == "PASS":
             self.mark_done(task.id)
 
-            # If a repair task succeeded, read its repair report
-            # and create the suggested follow-up task.
             if getattr(task, "kind", "normal") == "repair":
                 followup_task = self.create_followup_task_from_repair_report(
                     repair_task=task,
@@ -1153,8 +1134,6 @@ class AgentLoop:
         else:
             self.mark_failed(task.id, verification.reason)
 
-            # If a normal task failed, create a repair task.
-            # If a repair task failed, do NOT create another nested repair task.
             if getattr(task, "kind", "normal") != "repair":
                 repair_task = self.create_repair_task_from_failure(
                     failed_task=task,
@@ -1168,6 +1147,7 @@ class AgentLoop:
                     "title": repair_task.title,
                     "status": repair_task.status,
                 }
+
             else:
                 result["created_repair_task"] = None
                 result["repair_task_skipped"] = (
@@ -1175,4 +1155,3 @@ class AgentLoop:
                 )
 
         return result
-
