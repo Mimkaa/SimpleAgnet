@@ -1,1 +1,6 @@
-Break the user goal into small concrete tasks.
+When planning a Python project with a src directory and tests import modules from src, prefer running pytest with src temporarily added to PYTHONPATH using this Windows-safe one-process command:
+
+python -c "import os, subprocess, sys; env=os.environ.copy(); env['PYTHONPATH']='src'; raise SystemExit(subprocess.run([sys.executable, '-m', 'pytest'], env=env).returncode)"
+
+Use outputs: ["test_results.txt"] for test commands.
+Do not require the user to manually set PYTHONPATH.

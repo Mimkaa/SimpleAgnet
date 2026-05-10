@@ -8,6 +8,7 @@ class CliInterface:
             "Commands: help, goal <text>, tasks, next, exec, artifact <name>, "
             "done <id>, fail <id>, shell <cmd>, log, exit"
         )
+        print(f"Target project: {self.agent.target_project_dir}")
 
         while True:
             try:
@@ -30,7 +31,7 @@ class CliInterface:
                 print("artifact <name>   - show artifact content")
                 print("done <id>         - mark task done")
                 print("fail <id>         - mark task failed")
-                print("shell <cmd>       - run shell command")
+                print("shell <cmd>       - run shell command in target project")
                 print("log               - show recent events")
                 print("exit              - exit CLI")
                 continue
@@ -97,12 +98,29 @@ class CliInterface:
                 continue
 
             if line.startswith("shell "):
-                cmd = line[len("shell "):]
-                result = self.agent.run_tool("shell", command=cmd)
-                print(result.get("stdout", ""))
+                cmd = line[len("shell "):].strip()
 
-                if result.get("stderr"):
-                    print(result["stderr"])
+                if not cmd:
+                    print("Usage: shell <command>")
+                    continue
+
+                result = self.agent.run_tool(
+                    "shell",
+                    command=cmd,
+                    cwd=str(self.agent.target_project_dir),
+                )
+
+                stdout = result.get("stdout", "")
+                stderr = result.get("stderr", "")
+
+                if stdout:
+                    print(stdout, end="" if stdout.endswith("\n") else "\n")
+
+                if stderr:
+                    print(stderr, end="" if stderr.endswith("\n") else "\n")
+
+                if not stdout and not stderr:
+                    print(result)
 
                 continue
 
