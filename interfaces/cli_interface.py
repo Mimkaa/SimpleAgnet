@@ -2,13 +2,35 @@ class CliInterface:
     def __init__(self, agent):
         self.agent = agent
 
+    def print_known_artifacts(self):
+        important_artifacts = [
+            "project_profile.md",
+            "entry_point.md",
+            "core_components.md",
+            "core_source_snapshot.md",
+            "confirmed_runtime_flow.md",
+            "test_results.txt",
+            "test_behavior_report.md",
+            "final_behavior_report.md",
+            "runtime_flow_explanation.md",
+        ]
+
+        print("Known artifacts:")
+
+        for artifact_name in important_artifacts:
+            exists = self.agent.artifacts.exists(artifact_name)
+            status = "yes" if exists else "no"
+            print(f"- {artifact_name}: {status}")
+
     def run(self):
         print("Minimal Agent CLI")
         print(
             "Commands: help, goal <text>, tasks, next, exec, artifact <name>, "
-            "done <id>, fail <id>, shell <cmd>, log, exit"
+            "artifact-exists <name>, artifacts, done <id>, fail <id>, "
+            "shell <cmd>, log, exit"
         )
         print(f"Target project: {self.agent.target_project_dir}")
+        self.print_known_artifacts()
 
         while True:
             try:
@@ -24,16 +46,18 @@ class CliInterface:
                 break
 
             if line == "help":
-                print("goal <text>       - create tasks from goal")
-                print("tasks             - list tasks")
-                print("next              - show next pending task + suggested action")
-                print("exec              - execute next pending task")
-                print("artifact <name>   - show artifact content")
-                print("done <id>         - mark task done")
-                print("fail <id>         - mark task failed")
-                print("shell <cmd>       - run shell command in target project")
-                print("log               - show recent events")
-                print("exit              - exit CLI")
+                print("goal <text>            - create tasks from goal")
+                print("tasks                  - list tasks")
+                print("next                   - show next pending task + suggested action")
+                print("exec                   - execute next pending task")
+                print("artifact <name>        - show artifact content")
+                print("artifact-exists <name> - check whether an artifact exists")
+                print("artifacts              - show known important artifacts")
+                print("done <id>              - mark task done")
+                print("fail <id>              - mark task failed")
+                print("shell <cmd>            - run shell command in target project")
+                print("log                    - show recent events")
+                print("exit                   - exit CLI")
                 continue
 
             if line.startswith("goal "):
@@ -62,6 +86,10 @@ class CliInterface:
             if line == "exec":
                 result = self.agent.execute_next_action()
                 print(result)
+                continue
+
+            if line == "artifacts":
+                self.print_known_artifacts()
                 continue
 
             if line.startswith("artifact-exists "):
