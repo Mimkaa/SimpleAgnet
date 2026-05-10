@@ -64,6 +64,16 @@ class CliInterface:
                 print(result)
                 continue
 
+            if line.startswith("artifact-exists "):
+                artifact_name = line[len("artifact-exists "):].strip()
+
+                if not artifact_name:
+                    print("Usage: artifact-exists <artifact_name>")
+                    continue
+
+                print(self.agent.artifacts.exists(artifact_name))
+                continue
+
             if line.startswith("artifact "):
                 artifact_name = line[len("artifact "):].strip()
 
