@@ -97,10 +97,11 @@ class FirewallProjectWorkflow:
                 outputs=[
                     "core_source_snapshot.md",
                 ],
-                tool_hint="read_source_files",
+                tool_hint="source_snapshot",
                 kind="normal",
                 action={
                     "tool": "source_snapshot",
+                    "root": r"C:\Users\illa9\Downloads\mock_firewall_project\mock_firewall_project",
                     "files": [
                         "src/main.py",
                         "src/firewall.py",
@@ -111,9 +112,7 @@ class FirewallProjectWorkflow:
                         "rules/rules.json",
                         "README.md",
                     ],
-                    "outputs": [
-                        "core_source_snapshot.md",
-                    ],
+                    "output": ".agent_data/artifacts/core_source_snapshot.md",
                     "reason": "Read important source files to confirm actual runtime behavior.",
                 },
             ),
