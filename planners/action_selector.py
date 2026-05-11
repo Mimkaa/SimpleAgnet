@@ -49,7 +49,12 @@ class ActionSelector:
         if tool == "source_snapshot":
             return {
                 "tool": "source_snapshot",
+                "root": action_config["root"],
                 "files": action_config.get("files", []),
+                "output": action_config.get(
+                    "output",
+                    ".agent_data/artifacts/core_source_snapshot.md",
+                ),
                 "outputs": action_config.get("outputs", task.outputs),
                 "reason": action_config.get(
                     "reason",

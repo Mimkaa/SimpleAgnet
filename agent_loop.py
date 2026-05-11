@@ -542,20 +542,27 @@ class AgentLoop:
         }
 
     def create_source_snapshot(self, task: Task, action: dict):
+        from pathlib import Path
+
+        root = Path(action.get("root", self.target_project_dir))
         files = action.get("files", [])
         outputs = action.get("outputs", [])
 
-        if not outputs:
+        output_name = action.get("output")
+        if output_name:
+            output_name = Path(output_name).name
+        elif outputs:
+            output_name = outputs[0]
+        else:
             return {
                 "ok": False,
                 "message": "No output artifact specified.",
             }
 
-        output_name = outputs[0]
         parts = []
 
         for file_path in files:
-            target_file_path = self.target_project_dir / file_path
+            target_file_path = root / file_path
 
             result = self.run_tool(
                 "file",
@@ -585,11 +592,11 @@ class AgentLoop:
             )
 
         artifact_content = (
-            "# Core Source Snapshot\n\n"
-            "This artifact contains the source files used to confirm runtime behavior.\n\n"
-            f"Target project directory:\n\n"
-            f"```text\n{self.target_project_dir}\n```\n\n"
-            + "\n\n".join(parts)
+                "# Core Source Snapshot\n\n"
+                "This artifact contains the source files used to confirm runtime behavior.\n\n"
+                f"Target project directory:\n\n"
+                f"```text\n{root}\n```\n\n"
+                + "\n\n".join(parts)
         )
 
         artifact_path = self.artifacts.write_text(output_name, artifact_content)
