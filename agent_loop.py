@@ -621,24 +621,14 @@ class AgentLoop:
         outputs = action.get("outputs", [])
 
         if not target_file:
-            return {
-                "ok": False,
-                "message": "No target file specified.",
-            }
+            return {"ok": False, "message": "No target file specified."}
 
         if not outputs:
-            return {
-                "ok": False,
-                "message": "No output artifact specified.",
-            }
+            return {"ok": False, "message": "No output artifact specified."}
 
         target_path = self.target_project_dir / target_file
 
-        read_result = self.run_tool(
-            "file",
-            action="read",
-            path=str(target_path),
-        )
+        read_result = self.run_tool("file", action="read", path=str(target_path))
 
         if not read_result.get("ok"):
             return {
@@ -650,139 +640,68 @@ class AgentLoop:
 
         old_content = read_result.get("content", "")
 
-        already_fixed_patterns = [
-            'f"{datetime.utcnow().isoformat()}Z "',
-        ]
+        expected_text = "datetime.now(timezone.utc)"
+        forbidden_text = "datetime.utcnow()"
 
-        for pattern in already_fixed_patterns:
-            if pattern in old_content:
-                run_result = self.run_tool(
-                    "shell",
-                    command="python src/main.py",
-                    cwd=str(self.target_project_dir),
-                )
-
-                report = [
-                    "# Change Report",
-                    "",
-                    "## No change needed",
-                    "",
-                    f"Target file: `{target_file}`",
-                    "",
-                    "The file already contains the safe logger timestamp format:",
-                    "",
-                    "```python",
-                    pattern,
-                    "```",
-                    "",
-                    "## Verification command",
-                    "",
-                    "```bash",
-                    "python src/main.py",
-                    "```",
-                    "",
-                    "## Verification result",
-                    "",
-                    f"Return code: `{run_result.get('returncode')}`",
-                    "",
-                    "### stdout",
-                    "",
-                    "```text",
-                    run_result.get("stdout", ""),
-                    "```",
-                    "",
-                    "### stderr",
-                    "",
-                    "```text",
-                    run_result.get("stderr", ""),
-                    "```",
-                ]
-
-                artifact_path = self.artifacts.write_text(
-                    outputs[0],
-                    "\n".join(report),
-                )
-
-                self.event_log.write(
-                    "safe_change_already_applied",
-                    {
-                        "task_id": task.id,
-                        "target_file": str(target_path),
-                        "artifact": str(artifact_path),
-                        "run_ok": run_result.get("ok"),
-                        "fix_name": "Already fixed logger timestamp format",
-                    },
-                )
-
-                return {
-                    "ok": bool(run_result.get("ok")),
-                    "message": "Change already applied.",
-                    "target_file": str(target_path),
-                    "artifact": str(artifact_path),
-                    "run_result": run_result,
-                    "fix_name": "Already fixed logger timestamp format",
-                }
-
-        fixes = [
-            {
-                "name": "Fix invalid nested logger timestamp f-string",
-                "old": 'f"{f"{datetime.utcnow().isoformat()}Z"} "',
-                "new": 'f"{datetime.utcnow().isoformat()}Z "',
-            },
-            {
-                "name": "Fix invalid nested logger timestamp f-string with single quotes inside",
-                "old": 'f"{f\'{datetime.utcnow().isoformat()}Z\'} "',
-                "new": 'f"{datetime.utcnow().isoformat()}Z "',
-            },
-            {
-                "name": "Add Z suffix to plain datetime ISO timestamp inside logger line",
-                "old": 'f"{datetime.utcnow().isoformat()} "',
-                "new": 'f"{datetime.utcnow().isoformat()}Z "',
-            },
-        ]
-
-        applied_fix = None
-        new_content = old_content
-
-        for fix in fixes:
-            if fix["old"] in old_content:
-                new_content = old_content.replace(fix["old"], fix["new"], 1)
-                applied_fix = fix
-                break
-
-        if applied_fix is None:
-            report = (
-                "# Change Report\n\n"
-                "Change was not applied.\n\n"
-                f"No known safe logger timestamp pattern was found in `{target_file}`.\n\n"
-                "Known fixed patterns checked:\n\n"
-                + "\n".join(f"- `{pattern}`" for pattern in already_fixed_patterns)
-                + "\n\n"
-                "Known repair patterns checked:\n\n"
-                + "\n".join(f"- `{fix['old']}`" for fix in fixes)
-                + "\n"
+        if expected_text in old_content and forbidden_text not in old_content:
+            run_result = self.run_tool(
+                "shell",
+                command="python src/main.py",
+                cwd=str(self.target_project_dir),
             )
 
-            artifact_path = self.artifacts.write_text(outputs[0], report)
+            ok = bool(run_result.get("ok"))
+
+            report = [
+                "# Change Report",
+                "",
+                "## No change needed",
+                "",
+                f"Target file: `{target_file}`",
+                "",
+                f"Expected text found: `{expected_text}`",
+                f"Forbidden text absent: `{forbidden_text}`",
+                "",
+                "## Verification",
+                "",
+                f"Program run ok: `{ok}`",
+            ]
+
+            artifact_path = self.artifacts.write_text(outputs[0], "\n".join(report))
 
             return {
-                "ok": False,
-                "message": "No known safe logger timestamp pattern found.",
+                "ok": ok,
+                "message": "Change already applied and verified.",
+                "target_file": str(target_path),
                 "artifact": str(artifact_path),
+                "run_result": run_result,
             }
+
+        new_content = old_content
+
+        new_content = new_content.replace(
+            "from datetime import datetime",
+            "from datetime import datetime, timezone",
+            1,
+        )
+
+        new_content = new_content.replace(
+            'f"{datetime.utcnow().isoformat()}Z "',
+            'f"{datetime.now(timezone.utc).isoformat().replace(\'+00:00\', \'Z\')} "',
+            1,
+        )
 
         if new_content == old_content:
             report = (
                 "# Change Report\n\n"
-                "No change needed.\n\n"
-                f"`{target_file}` already appears unchanged after applying the selected fix.\n"
+                "Change was not applied.\n\n"
+                f"Expected old logger timestamp pattern was not found in `{target_file}`.\n"
             )
-
             artifact_path = self.artifacts.write_text(outputs[0], report)
 
             return {
-                "ok": True,
-                "message": "No change needed.",
+                "ok": False,
+                "message": "Expected old logger timestamp pattern was not found.",
                 "artifact": str(artifact_path),
             }
 
@@ -801,11 +720,22 @@ class AgentLoop:
                 "write_result": write_result,
             }
 
+        verify_read_result = self.run_tool("file", action="read", path=str(target_path))
+        verify_content = verify_read_result.get("content", "")
+
+        content_verified = (
+                verify_read_result.get("ok")
+                and expected_text in verify_content
+                and forbidden_text not in verify_content
+        )
+
         run_result = self.run_tool(
             "shell",
             command="python src/main.py",
             cwd=str(self.target_project_dir),
         )
+
+        ok = bool(run_result.get("ok")) and content_verified
 
         report = [
             "# Change Report",
@@ -814,29 +744,13 @@ class AgentLoop:
             "",
             f"Target file: `{target_file}`",
             "",
-            f"Fix name: `{applied_fix['name']}`",
-            "",
-            "Replaced:",
-            "",
-            "```python",
-            applied_fix["old"],
-            "```",
-            "",
-            "With:",
-            "",
-            "```python",
-            applied_fix["new"],
-            "```",
-            "",
-            "## Verification command",
-            "",
-            "```bash",
-            "python src/main.py",
-            "```",
+            f"Expected text found: `{expected_text in verify_content}`",
+            f"Forbidden text absent: `{forbidden_text not in verify_content}`",
+            f"Program run ok: `{bool(run_result.get('ok'))}`",
             "",
             "## Verification result",
             "",
-            f"Return code: `{run_result.get('returncode')}`",
+            f"Overall ok: `{ok}`",
             "",
             "### stdout",
             "",
@@ -851,10 +765,7 @@ class AgentLoop:
             "```",
         ]
 
-        artifact_path = self.artifacts.write_text(
-            outputs[0],
-            "\n".join(report),
-        )
+        artifact_path = self.artifacts.write_text(outputs[0], "\n".join(report))
 
         self.event_log.write(
             "safe_change_applied",
@@ -863,17 +774,17 @@ class AgentLoop:
                 "target_file": str(target_path),
                 "artifact": str(artifact_path),
                 "run_ok": run_result.get("ok"),
-                "fix_name": applied_fix["name"],
+                "content_verified": content_verified,
             },
         )
 
         return {
-            "ok": bool(run_result.get("ok")),
-            "message": "Applied safe logger timestamp fix.",
+            "ok": ok,
+            "message": "Applied safe logger timestamp fix." if ok else "Change verification failed.",
             "target_file": str(target_path),
             "artifact": str(artifact_path),
             "run_result": run_result,
-            "fix_name": applied_fix["name"],
+            "content_verified": content_verified,
         }
 
     def create_repair_task_from_failure(self, failed_task, action, result, verification):
