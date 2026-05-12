@@ -640,8 +640,8 @@ class AgentLoop:
 
         old_content = read_result.get("content", "")
 
-        expected_text = "datetime.now(timezone.utc)"
-        forbidden_text = "datetime.utcnow()"
+        expected_text = action.get("expected_text", "datetime.now(timezone.utc)")
+        forbidden_text = action.get("forbidden_text", "datetime.utcnow()")
 
         if expected_text in old_content and forbidden_text not in old_content:
             run_result = self.run_tool(
