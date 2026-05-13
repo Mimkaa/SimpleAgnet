@@ -1069,6 +1069,30 @@ class AgentLoop:
     def create_fallback_task_from_goal(self, goal: str) -> Task:
         lower_goal = goal.lower()
 
+        if "test generic safe text replacement" in lower_goal:
+            return Task(
+                title="Test generic safe text replacement",
+                description="Create a temp file and replace OLD_VALUE with NEW_VALUE using apply_safe_change.",
+                inputs=[],
+                outputs=[
+                    "generic_safe_change_test_report.md",
+                ],
+                tool_hint="apply_safe_change",
+                kind="normal",
+                action={
+                    "tool": "apply_safe_change",
+                    "target_file": "tmp_safe_change_test.txt",
+                    "outputs": [
+                        "generic_safe_change_test_report.md",
+                    ],
+                    "old_text": "OLD_VALUE",
+                    "new_text": "NEW_VALUE",
+                    "expected_text": "NEW_VALUE",
+                    "forbidden_text": "OLD_VALUE",
+                    "reason": "Test generic safe text replacement on a harmless temp file.",
+                },
+            )
+
         if "apply safe logger timestamp change" in lower_goal:
             return Task(
                 title="Apply safe logger timestamp change",
