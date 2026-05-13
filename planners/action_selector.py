@@ -71,6 +71,8 @@ class ActionSelector:
                 "new_text": action_config.get("new_text"),
                 "expected_text": action_config.get("expected_text"),
                 "forbidden_text": action_config.get("forbidden_text"),
+                "setup_text": action_config.get("setup_text"),
+                "cleanup_after": action_config.get("cleanup_after", False),
                 "reason": action_config.get(
                     "reason",
                     "Task provided explicit safe change action.",

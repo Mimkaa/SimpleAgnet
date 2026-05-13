@@ -593,6 +593,33 @@ class AgentLoop:
 
         target_path = self.target_project_dir / target_file
 
+        expected_text = action.get("expected_text", "datetime.now(timezone.utc)")
+        forbidden_text = action.get("forbidden_text", "datetime.utcnow()")
+        old_text = action.get("old_text")
+        new_text_value = action.get("new_text")
+        setup_text = action.get("setup_text")
+        cleanup_after = bool(action.get("cleanup_after", False))
+
+        setup_created_file = False
+
+        if setup_text is not None and not target_path.exists():
+            write_setup_result = self.run_tool(
+                "file",
+                action="write",
+                path=str(target_path),
+                content=setup_text,
+            )
+
+            if not write_setup_result.get("ok"):
+                return {
+                    "ok": False,
+                    "message": "Could not create setup file.",
+                    "target_file": str(target_path),
+                    "write_setup_result": write_setup_result,
+                }
+
+            setup_created_file = True
+
         read_result = self.run_tool("file", action="read", path=str(target_path))
 
         if not read_result.get("ok"):
@@ -605,17 +632,21 @@ class AgentLoop:
 
         old_content = read_result.get("content", "")
 
-        expected_text = action.get("expected_text", "datetime.now(timezone.utc)")
-        forbidden_text = action.get("forbidden_text", "datetime.utcnow()")
-        old_text = action.get("old_text")
-        new_text_value = action.get("new_text")
-
         if expected_text in old_content and forbidden_text not in old_content:
             run_result = self.run_tool(
                 "shell",
                 command="python src/main.py",
                 cwd=str(self.target_project_dir),
             )
+
+            cleanup_result = None
+
+            if cleanup_after and setup_created_file:
+                cleanup_result = self.run_tool(
+                    "file",
+                    action="delete",
+                    path=str(target_path),
+                )
 
             ok = bool(run_result.get("ok"))
 
@@ -628,6 +659,9 @@ class AgentLoop:
                 "",
                 f"Expected text found: `{expected_text}`",
                 f"Forbidden text absent: `{forbidden_text}`",
+                f"Setup file created: `{setup_created_file}`",
+                f"Cleanup requested: `{cleanup_after}`",
+                f"Cleanup result ok: `{cleanup_result.get('ok') if cleanup_result else None}`",
                 "",
                 "## Verification",
                 "",
@@ -642,6 +676,8 @@ class AgentLoop:
                 "target_file": str(target_path),
                 "artifact": str(artifact_path),
                 "run_result": run_result,
+                "setup_created_file": setup_created_file,
+                "cleanup_result": cleanup_result,
             }
 
         new_content = old_content
@@ -663,6 +699,7 @@ class AgentLoop:
                     "ok": False,
                     "message": "old_text was not found in target file.",
                     "artifact": str(artifact_path),
+                    "setup_created_file": setup_created_file,
                 }
 
             new_content = old_content.replace(old_text, new_text_value, 1)
@@ -692,6 +729,7 @@ class AgentLoop:
                 "ok": False,
                 "message": "No safe replacement changed the target file.",
                 "artifact": str(artifact_path),
+                "setup_created_file": setup_created_file,
             }
 
         write_result = self.run_tool(
@@ -707,6 +745,7 @@ class AgentLoop:
                 "message": "Could not write patched file.",
                 "target_file": str(target_path),
                 "write_result": write_result,
+                "setup_created_file": setup_created_file,
             }
 
         verify_read_result = self.run_tool("file", action="read", path=str(target_path))
@@ -724,7 +763,22 @@ class AgentLoop:
             cwd=str(self.target_project_dir),
         )
 
-        ok = bool(run_result.get("ok")) and content_verified
+        cleanup_result = None
+
+        if cleanup_after and setup_created_file:
+            cleanup_result = self.run_tool(
+                "file",
+                action="delete",
+                path=str(target_path),
+            )
+
+        cleanup_ok = (
+            True
+            if not cleanup_after or not setup_created_file
+            else bool(cleanup_result and cleanup_result.get("ok"))
+        )
+
+        ok = bool(run_result.get("ok")) and content_verified and cleanup_ok
 
         report = [
             "# Change Report",
@@ -734,6 +788,10 @@ class AgentLoop:
             f"Target file: `{target_file}`",
             "",
             f"Used custom old_text/new_text: `{bool(old_text and new_text_value)}`",
+            f"Setup text provided: `{setup_text is not None}`",
+            f"Setup file created: `{setup_created_file}`",
+            f"Cleanup requested: `{cleanup_after}`",
+            f"Cleanup result ok: `{cleanup_result.get('ok') if cleanup_result else None}`",
             f"Expected text found: `{expected_text in verify_content}`",
             f"Forbidden text absent: `{forbidden_text not in verify_content}`",
             f"Program run ok: `{bool(run_result.get('ok'))}`",
@@ -766,6 +824,9 @@ class AgentLoop:
                 "run_ok": run_result.get("ok"),
                 "content_verified": content_verified,
                 "used_custom_replacement": bool(old_text and new_text_value),
+                "setup_created_file": setup_created_file,
+                "cleanup_after": cleanup_after,
+                "cleanup_ok": cleanup_ok,
             },
         )
 
@@ -777,6 +838,9 @@ class AgentLoop:
             "run_result": run_result,
             "content_verified": content_verified,
             "used_custom_replacement": bool(old_text and new_text_value),
+            "setup_created_file": setup_created_file,
+            "cleanup_after": cleanup_after,
+            "cleanup_result": cleanup_result,
         }
 
     def create_repair_task_from_failure(self, failed_task, action, result, verification):
@@ -1089,6 +1153,8 @@ class AgentLoop:
                     "new_text": "NEW_VALUE",
                     "expected_text": "NEW_VALUE",
                     "forbidden_text": "OLD_VALUE",
+                    "setup_text": "OLD_VALUE",
+                    "cleanup_after": True,
                     "reason": "Test generic safe text replacement on a harmless temp file.",
                 },
             )

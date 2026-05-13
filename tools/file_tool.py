@@ -1,6 +1,7 @@
 from pathlib import Path
 from agent.tools.base import Tool
 
+
 class FileTool(Tool):
     name = "file"
 
@@ -17,5 +18,19 @@ class FileTool(Tool):
 
         if action == "exists":
             return {"ok": True, "exists": p.exists()}
+
+        if action == "delete":
+            if not p.exists():
+                return {"ok": True, "path": str(p), "deleted": False}
+
+            if p.is_dir():
+                return {
+                    "ok": False,
+                    "path": str(p),
+                    "message": "Refusing to delete directory.",
+                }
+
+            p.unlink()
+            return {"ok": True, "path": str(p), "deleted": True}
 
         raise ValueError(f"Unknown file action: {action}")
