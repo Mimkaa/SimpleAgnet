@@ -30,42 +30,7 @@ class AgentLoop:
         self.artifact_analyzer = OpenAIArtifactAnalyzer()
         self.openai_task_planner = OpenAITaskPlanner()
 
-    def create_fallback_task_from_goal(self, goal: str) -> Task:
-        lower_goal = goal.lower()
 
-        if "failing shell command" in lower_goal or "fail shell command" in lower_goal:
-            return Task(
-                title=goal,
-                description="Run a command that intentionally fails to test verifier and repair loop.",
-                tool_hint="shell",
-                kind="test",
-                action={
-                    "tool": "shell",
-                    "command": "py -3 -c \"raise Exception('boom')\"",
-                    "outputs": [],
-                    "reason": "Intentional verifier failure test.",
-                },
-            )
-
-        if "shell command" in lower_goal and "pass" in lower_goal:
-            return Task(
-                title=goal,
-                description="Run a safe command that should pass to test verifier logic.",
-                tool_hint="shell",
-                kind="test",
-                action={
-                    "tool": "shell",
-                    "command": "py -3 --version",
-                    "outputs": [],
-                    "reason": "Intentional verifier PASS test.",
-                },
-            )
-
-        return Task(
-            title=goal,
-            description="Manually created task from user goal.",
-            kind="normal",
-        )
 
     def create_goal(self, goal: str) -> List[Task]:
         if goal.lower().startswith("ai plan:"):
@@ -642,6 +607,8 @@ class AgentLoop:
 
         expected_text = action.get("expected_text", "datetime.now(timezone.utc)")
         forbidden_text = action.get("forbidden_text", "datetime.utcnow()")
+        old_text = action.get("old_text")
+        new_text_value = action.get("new_text")
 
         if expected_text in old_content and forbidden_text not in old_content:
             run_result = self.run_tool(
@@ -679,29 +646,51 @@ class AgentLoop:
 
         new_content = old_content
 
-        new_content = new_content.replace(
-            "from datetime import datetime",
-            "from datetime import datetime, timezone",
-            1,
-        )
+        if old_text and new_text_value:
+            if old_text not in old_content:
+                report = (
+                    "# Change Report\n\n"
+                    "Change was not applied.\n\n"
+                    f"`old_text` was not found in `{target_file}`.\n\n"
+                    "Expected old text:\n\n"
+                    "```text\n"
+                    f"{old_text}\n"
+                    "```\n"
+                )
+                artifact_path = self.artifacts.write_text(outputs[0], report)
 
-        new_content = new_content.replace(
-            'f"{datetime.utcnow().isoformat()}Z "',
-            'f"{datetime.now(timezone.utc).isoformat().replace(\'+00:00\', \'Z\')} "',
-            1,
-        )
+                return {
+                    "ok": False,
+                    "message": "old_text was not found in target file.",
+                    "artifact": str(artifact_path),
+                }
+
+            new_content = old_content.replace(old_text, new_text_value, 1)
+
+        else:
+            new_content = new_content.replace(
+                "from datetime import datetime",
+                "from datetime import datetime, timezone",
+                1,
+            )
+
+            new_content = new_content.replace(
+                'f"{datetime.utcnow().isoformat()}Z "',
+                'f"{datetime.now(timezone.utc).isoformat().replace(\'+00:00\', \'Z\')} "',
+                1,
+            )
 
         if new_content == old_content:
             report = (
                 "# Change Report\n\n"
                 "Change was not applied.\n\n"
-                f"Expected old logger timestamp pattern was not found in `{target_file}`.\n"
+                f"No safe replacement changed `{target_file}`.\n"
             )
             artifact_path = self.artifacts.write_text(outputs[0], report)
 
             return {
                 "ok": False,
-                "message": "Expected old logger timestamp pattern was not found.",
+                "message": "No safe replacement changed the target file.",
                 "artifact": str(artifact_path),
             }
 
@@ -744,6 +733,7 @@ class AgentLoop:
             "",
             f"Target file: `{target_file}`",
             "",
+            f"Used custom old_text/new_text: `{bool(old_text and new_text_value)}`",
             f"Expected text found: `{expected_text in verify_content}`",
             f"Forbidden text absent: `{forbidden_text not in verify_content}`",
             f"Program run ok: `{bool(run_result.get('ok'))}`",
@@ -775,16 +765,18 @@ class AgentLoop:
                 "artifact": str(artifact_path),
                 "run_ok": run_result.get("ok"),
                 "content_verified": content_verified,
+                "used_custom_replacement": bool(old_text and new_text_value),
             },
         )
 
         return {
             "ok": ok,
-            "message": "Applied safe logger timestamp fix." if ok else "Change verification failed.",
+            "message": "Applied safe text replacement." if ok else "Change verification failed.",
             "target_file": str(target_path),
             "artifact": str(artifact_path),
             "run_result": run_result,
             "content_verified": content_verified,
+            "used_custom_replacement": bool(old_text and new_text_value),
         }
 
     def create_repair_task_from_failure(self, failed_task, action, result, verification):
@@ -1093,6 +1085,8 @@ class AgentLoop:
                     "outputs": [
                         "change_report.md",
                     ],
+                    "old_text": 'f"{datetime.utcnow().isoformat()}Z "',
+                    "new_text": 'f"{datetime.now(timezone.utc).isoformat().replace(\'+00:00\', \'Z\')} "',
                     "expected_text": "datetime.now(timezone.utc)",
                     "forbidden_text": "datetime.utcnow()",
                     "reason": "Apply the approved tiny safe logger timestamp change.",

@@ -67,6 +67,8 @@ class ActionSelector:
                 "tool": "apply_safe_change",
                 "target_file": action_config.get("target_file", "src/logger.py"),
                 "outputs": action_config.get("outputs", task.outputs),
+                "old_text": action_config.get("old_text"),
+                "new_text": action_config.get("new_text"),
                 "expected_text": action_config.get("expected_text"),
                 "forbidden_text": action_config.get("forbidden_text"),
                 "reason": action_config.get(
