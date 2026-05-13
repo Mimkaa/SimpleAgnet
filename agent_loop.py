@@ -1073,3 +1073,62 @@ class AgentLoop:
                 )
 
         return result
+
+    def create_fallback_task_from_goal(self, goal: str) -> Task:
+        lower_goal = goal.lower()
+
+        if "apply safe logger timestamp change" in lower_goal:
+            return Task(
+                title="Apply safe logger timestamp change",
+                description="Update src/logger.py so UTC timestamps in the log end with Z.",
+                inputs=[],
+                outputs=[
+                    "change_report.md",
+                ],
+                tool_hint="apply_safe_change",
+                kind="normal",
+                action={
+                    "tool": "apply_safe_change",
+                    "target_file": "src/logger.py",
+                    "outputs": [
+                        "change_report.md",
+                    ],
+                    "expected_text": "datetime.now(timezone.utc)",
+                    "forbidden_text": "datetime.utcnow()",
+                    "reason": "Apply the approved tiny safe logger timestamp change.",
+                },
+            )
+
+        if "failing shell command" in lower_goal or "fail shell command" in lower_goal:
+            return Task(
+                title=goal,
+                description="Run a command that intentionally fails to test verifier and repair loop.",
+                tool_hint="shell",
+                kind="test",
+                action={
+                    "tool": "shell",
+                    "command": "py -3 -c \"raise Exception('boom')\"",
+                    "outputs": [],
+                    "reason": "Intentional verifier failure test.",
+                },
+            )
+
+        if "shell command" in lower_goal and "pass" in lower_goal:
+            return Task(
+                title=goal,
+                description="Run a safe command that should pass to test verifier logic.",
+                tool_hint="shell",
+                kind="test",
+                action={
+                    "tool": "shell",
+                    "command": "py -3 --version",
+                    "outputs": [],
+                    "reason": "Intentional verifier PASS test.",
+                },
+            )
+
+        return Task(
+            title=goal,
+            description="Manually created task from user goal.",
+            kind="normal",
+        )
