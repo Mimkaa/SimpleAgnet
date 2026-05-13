@@ -97,11 +97,10 @@ class FirewallProjectWorkflow:
                 outputs=[
                     "core_source_snapshot.md",
                 ],
-                tool_hint="source_snapshot",
+                tool_hint="read_source_files",
                 kind="normal",
                 action={
                     "tool": "source_snapshot",
-                    "root": r"C:\Users\illa9\Downloads\mock_firewall_project\mock_firewall_project",
                     "files": [
                         "src/main.py",
                         "src/firewall.py",
@@ -112,7 +111,9 @@ class FirewallProjectWorkflow:
                         "rules/rules.json",
                         "README.md",
                     ],
-                    "output": ".agent_data/artifacts/core_source_snapshot.md",
+                    "outputs": [
+                        "core_source_snapshot.md",
+                    ],
                     "reason": "Read important source files to confirm actual runtime behavior.",
                 },
             ),
@@ -207,6 +208,8 @@ class FirewallProjectWorkflow:
                     "outputs": [
                         "change_report.md",
                     ],
+                    "expected_text": "datetime.now(timezone.utc)",
+                    "forbidden_text": "datetime.utcnow()",
                     "reason": "Apply the approved tiny safe logger timestamp change.",
                 },
             ),
