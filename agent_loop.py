@@ -633,6 +633,11 @@ class AgentLoop:
 
         old_content = read_result.get("content", "")
 
+        backup_path = target_path.with_suffix(target_path.suffix + ".bak")
+        backup_written = False
+        rollback_done = False
+        rollback_result = None
+
         if expected_text in old_content and forbidden_text not in old_content:
             run_result = self.run_tool(
                 "shell",
@@ -737,6 +742,26 @@ class AgentLoop:
                 "run_command": run_command,
             }
 
+        backup_result = self.run_tool(
+            "file",
+            action="write",
+            path=str(backup_path),
+            content=old_content,
+        )
+
+        if not backup_result.get("ok"):
+            return {
+                "ok": False,
+                "message": "Could not write backup file.",
+                "target_file": str(target_path),
+                "backup_file": str(backup_path),
+                "backup_result": backup_result,
+                "setup_created_file": setup_created_file,
+                "run_command": run_command,
+            }
+
+        backup_written = True
+
         write_result = self.run_tool(
             "file",
             action="write",
@@ -745,11 +770,23 @@ class AgentLoop:
         )
 
         if not write_result.get("ok"):
+            rollback_result = self.run_tool(
+                "file",
+                action="write",
+                path=str(target_path),
+                content=old_content,
+            )
+            rollback_done = bool(rollback_result.get("ok"))
+
             return {
                 "ok": False,
                 "message": "Could not write patched file.",
                 "target_file": str(target_path),
                 "write_result": write_result,
+                "backup_file": str(backup_path),
+                "backup_written": backup_written,
+                "rollback_done": rollback_done,
+                "rollback_result": rollback_result,
                 "setup_created_file": setup_created_file,
                 "run_command": run_command,
             }
@@ -786,6 +823,15 @@ class AgentLoop:
 
         ok = bool(run_result.get("ok")) and content_verified and cleanup_ok
 
+        if not ok and backup_written:
+            rollback_result = self.run_tool(
+                "file",
+                action="write",
+                path=str(target_path),
+                content=old_content,
+            )
+            rollback_done = bool(rollback_result.get("ok"))
+
         report = [
             "# Change Report",
             "",
@@ -798,6 +844,9 @@ class AgentLoop:
             f"Setup file created: `{setup_created_file}`",
             f"Cleanup requested: `{cleanup_after}`",
             f"Cleanup result ok: `{cleanup_result.get('ok') if cleanup_result else None}`",
+            f"Backup written: `{backup_written}`",
+            f"Backup file: `{backup_path}`",
+            f"Rollback done: `{rollback_done}`",
             f"Expected text found: `{expected_text in verify_content}`",
             f"Forbidden text absent: `{forbidden_text not in verify_content}`",
             f"Run command: `{run_command}`",
@@ -835,12 +884,15 @@ class AgentLoop:
                 "setup_created_file": setup_created_file,
                 "cleanup_after": cleanup_after,
                 "cleanup_ok": cleanup_ok,
+                "backup_file": str(backup_path),
+                "backup_written": backup_written,
+                "rollback_done": rollback_done,
             },
         )
 
         return {
             "ok": ok,
-            "message": "Applied safe text replacement." if ok else "Change verification failed.",
+            "message": "Applied safe text replacement." if ok else "Change verification failed; rollback attempted.",
             "target_file": str(target_path),
             "artifact": str(artifact_path),
             "run_result": run_result,
@@ -850,6 +902,10 @@ class AgentLoop:
             "setup_created_file": setup_created_file,
             "cleanup_after": cleanup_after,
             "cleanup_result": cleanup_result,
+            "backup_file": str(backup_path),
+            "backup_written": backup_written,
+            "rollback_done": rollback_done,
+            "rollback_result": rollback_result,
         }
 
     def create_repair_task_from_failure(self, failed_task, action, result, verification):
