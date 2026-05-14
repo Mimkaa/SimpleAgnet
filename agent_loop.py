@@ -1165,6 +1165,7 @@ class AgentLoop:
                     "setup_text": "OLD_VALUE",
                     "cleanup_after": True,
                     "reason": "Test generic safe text replacement on a harmless temp file.",
+                    "run_command": "python src/main.py",
                 },
             )
 
@@ -1189,6 +1190,7 @@ class AgentLoop:
                     "expected_text": "datetime.now(timezone.utc)",
                     "forbidden_text": "datetime.utcnow()",
                     "reason": "Apply the approved tiny safe logger timestamp change.",
+                    "run_command": "python src/main.py",
                 },
             )
 
