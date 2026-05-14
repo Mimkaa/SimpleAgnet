@@ -73,6 +73,7 @@ class ActionSelector:
                 "forbidden_text": action_config.get("forbidden_text"),
                 "setup_text": action_config.get("setup_text"),
                 "cleanup_after": action_config.get("cleanup_after", False),
+                "run_command": action_config.get("run_command", "python src/main.py"),
                 "reason": action_config.get(
                     "reason",
                     "Task provided explicit safe change action.",
