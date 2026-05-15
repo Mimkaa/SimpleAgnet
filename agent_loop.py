@@ -1174,6 +1174,10 @@ class AgentLoop:
 
         verification = self.verifier.verify_action_result(task, action, result)
 
+        if action.get("expected_failure") and verification.status == "FAIL":
+            verification.status = "PASS"
+            verification.reason = "Expected failure occurred."
+
         result["verification"] = {
             "status": verification.status,
             "reason": verification.reason,
@@ -1246,6 +1250,7 @@ class AgentLoop:
                     "cleanup_after": True,
                     "run_command": "python src/main.py",
                     "reason": "Test rollback when content verification fails.",
+                    "expected_failure": True,
                 },
             )
 
