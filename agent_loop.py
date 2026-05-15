@@ -647,7 +647,7 @@ class AgentLoop:
 
             cleanup_result = None
 
-            if cleanup_after and setup_created_file:
+            if cleanup_after :
                 cleanup_result = self.run_tool(
                     "file",
                     action="delete",
@@ -808,7 +808,7 @@ class AgentLoop:
 
         cleanup_result = None
 
-        if cleanup_after and setup_created_file:
+        if cleanup_after:
             cleanup_result = self.run_tool(
                 "file",
                 action="delete",
@@ -817,13 +817,14 @@ class AgentLoop:
 
         cleanup_ok = (
             True
-            if not cleanup_after or not setup_created_file
+            if not cleanup_after
             else bool(cleanup_result and cleanup_result.get("ok"))
         )
 
         ok = bool(run_result.get("ok")) and content_verified and cleanup_ok
 
         backup_cleanup_result = None
+        rollback_cleanup_result = None
 
         if ok and backup_written:
             backup_cleanup_result = self.run_tool(
@@ -840,6 +841,19 @@ class AgentLoop:
                 content=old_content,
             )
             rollback_done = bool(rollback_result.get("ok"))
+
+            if cleanup_after:
+                rollback_cleanup_result = self.run_tool(
+                    "file",
+                    action="delete",
+                    path=str(target_path),
+                )
+
+            backup_cleanup_result = self.run_tool(
+                "file",
+                action="delete",
+                path=str(backup_path),
+            )
 
         report = [
             "# Change Report",
@@ -861,6 +875,7 @@ class AgentLoop:
             f"Forbidden text absent: `{forbidden_text not in verify_content}`",
             f"Run command: `{run_command}`",
             f"Program run ok: `{bool(run_result.get('ok'))}`",
+            f"Rollback cleanup result ok: `{rollback_cleanup_result.get('ok') if rollback_cleanup_result else None}`",
             "",
             "## Verification result",
             "",
@@ -918,6 +933,8 @@ class AgentLoop:
             "rollback_done": rollback_done,
             "rollback_result": rollback_result,
             "backup_cleanup_result": backup_cleanup_result,
+            "rollback_cleanup_result": rollback_cleanup_result,
+
         }
 
     def create_repair_task_from_failure(self, failed_task, action, result, verification):
@@ -1209,6 +1226,28 @@ class AgentLoop:
 
     def create_fallback_task_from_goal(self, goal: str) -> Task:
         lower_goal = goal.lower()
+        if "test safe change rollback" in lower_goal:
+            return Task(
+                title="Test safe change rollback",
+                description="Create a temp file, apply a change, force verification to fail, and confirm rollback restores OLD_VALUE.",
+                inputs=[],
+                outputs=["rollback_test_report.md"],
+                tool_hint="apply_safe_change",
+                kind="normal",
+                action={
+                    "tool": "apply_safe_change",
+                    "target_file": "tmp_rollback_test.txt",
+                    "outputs": ["rollback_test_report.md"],
+                    "old_text": "OLD_VALUE",
+                    "new_text": "NEW_VALUE",
+                    "expected_text": "IMPOSSIBLE_EXPECTED_TEXT",
+                    "forbidden_text": "OLD_VALUE",
+                    "setup_text": "OLD_VALUE",
+                    "cleanup_after": True,
+                    "run_command": "python src/main.py",
+                    "reason": "Test rollback when content verification fails.",
+                },
+            )
 
         if "test generic safe text replacement" in lower_goal:
             return Task(
