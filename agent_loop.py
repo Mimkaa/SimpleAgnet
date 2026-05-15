@@ -918,6 +918,7 @@ class AgentLoop:
 
         return {
             "ok": ok,
+            "expected_failure_observed": action.get("expected_failure", False) and not ok,
             "message": "Applied safe text replacement." if ok else "Change verification failed; rollback attempted.",
             "target_file": str(target_path),
             "artifact": str(artifact_path),
@@ -1174,7 +1175,7 @@ class AgentLoop:
 
         verification = self.verifier.verify_action_result(task, action, result)
 
-        if action.get("expected_failure") and verification.status == "FAIL":
+        if result.get("expected_failure_observed") and verification.status == "FAIL":
             verification.status = "PASS"
             verification.reason = "Expected failure occurred."
 
