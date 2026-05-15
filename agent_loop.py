@@ -823,6 +823,15 @@ class AgentLoop:
 
         ok = bool(run_result.get("ok")) and content_verified and cleanup_ok
 
+        backup_cleanup_result = None
+
+        if ok and backup_written:
+            backup_cleanup_result = self.run_tool(
+                "file",
+                action="delete",
+                path=str(backup_path),
+            )
+
         if not ok and backup_written:
             rollback_result = self.run_tool(
                 "file",
@@ -846,6 +855,7 @@ class AgentLoop:
             f"Cleanup result ok: `{cleanup_result.get('ok') if cleanup_result else None}`",
             f"Backup written: `{backup_written}`",
             f"Backup file: `{backup_path}`",
+            f"Backup cleanup result ok: `{backup_cleanup_result.get('ok') if backup_cleanup_result else None}`",
             f"Rollback done: `{rollback_done}`",
             f"Expected text found: `{expected_text in verify_content}`",
             f"Forbidden text absent: `{forbidden_text not in verify_content}`",
@@ -886,6 +896,7 @@ class AgentLoop:
                 "cleanup_ok": cleanup_ok,
                 "backup_file": str(backup_path),
                 "backup_written": backup_written,
+                "backup_cleanup_result": backup_cleanup_result,
                 "rollback_done": rollback_done,
             },
         )
@@ -906,6 +917,7 @@ class AgentLoop:
             "backup_written": backup_written,
             "rollback_done": rollback_done,
             "rollback_result": rollback_result,
+            "backup_cleanup_result": backup_cleanup_result,
         }
 
     def create_repair_task_from_failure(self, failed_task, action, result, verification):
