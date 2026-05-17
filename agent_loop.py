@@ -10,6 +10,7 @@ from agent.tools.shell_tool import ShellTool
 from agent.tools.file_tool import FileTool
 from agent.analyzers.openai_artifact_analyzer import OpenAIArtifactAnalyzer
 from agent.planners.openai_task_planner import OpenAITaskPlanner
+from pathlib import Path
 
 
 class AgentLoop:
@@ -1231,6 +1232,45 @@ class AgentLoop:
 
     def create_fallback_task_from_goal(self, goal: str) -> Task:
         lower_goal = goal.lower()
+
+        if "snapshot agent source for self improvement" in lower_goal:
+            return Task(
+                title="Snapshot agent source for self improvement",
+                description="Read the agent source files needed to plan safe self-improvements.",
+                inputs=[],
+                outputs=["self_improvement_source_snapshot.md"],
+                tool_hint="source_snapshot",
+                kind="normal",
+                action={
+                    "tool": "source_snapshot",
+                    "root": str(Path(__file__).resolve().parents[1]),
+                    "files": [
+                        "agent/agent_loop.py",
+                        "agent/planners/action_selector.py",
+                        "agent/planners/verifier.py",
+                        "agent/state/task_state.py",
+                    ],
+                    "outputs": ["self_improvement_source_snapshot.md"],
+                    "reason": "Create source context before self-improvement planning.",
+                },
+            )
+
+        if "self-improvement planning" in lower_goal or "improve agent safely" in lower_goal:
+            return Task(
+                title="Create self-improvement plan",
+                description="Analyze what small safe improvement the agent should make next, without editing code yet.",
+                inputs=[],
+                outputs=["self_improvement_plan.md"],
+                tool_hint="artifact_transform",
+                kind="normal",
+                action={
+                    "tool": "artifact_transform",
+                    "inputs": [],
+                    "outputs": ["self_improvement_plan.md"],
+                    "reason": "Create a safe plan before allowing the agent to modify itself.",
+                },
+            )
+
         if "test safe change rollback" in lower_goal:
             return Task(
                 title="Test safe change rollback",
