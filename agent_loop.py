@@ -1233,6 +1233,51 @@ class AgentLoop:
     def create_fallback_task_from_goal(self, goal: str) -> Task:
         lower_goal = goal.lower()
 
+        if "run agent regression tests" in lower_goal:
+            return Task(
+                title="Run agent regression tests",
+                description="Run the agent's automated regression tests.",
+                inputs=[],
+                outputs=["agent_regression_test_results.md"],
+                tool_hint="shell",
+                kind="test",
+                action={
+                    "tool": "shell",
+                    "command": (
+                        'cd /d "C:\\Users\\illa9\\Downloads\\minimal_agent_repo\\minimal_agent_repo" '
+                        '&& python -m pytest agent/tests/test_apply_safe_change.py'
+                    ),
+                    "outputs": ["agent_regression_test_results.md"],
+                    "reason": "Verify that core safe-change behavior still works.",
+                },
+            )
+
+        if "propose self-improvement patch" in lower_goal:
+            return Task(
+                title="Propose self-improvement patch",
+                description="Use source snapshot and improvement plan to propose one safe executable code change.",
+                inputs=[
+                    "core_source_snapshot.md",
+                    "self_improvement_plan.md",
+                ],
+                outputs=[
+                    "self_improvement_patch_proposal.md",
+                ],
+                tool_hint="artifact_transform",
+                kind="normal",
+                action={
+                    "tool": "artifact_transform",
+                    "inputs": [
+                        "core_source_snapshot.md",
+                        "self_improvement_plan.md",
+                    ],
+                    "outputs": [
+                        "self_improvement_patch_proposal.md",
+                    ],
+                    "reason": "Generate one exact safe patch proposal.",
+                },
+            )
+
         if "snapshot agent source for self improvement" in lower_goal:
             return Task(
                 title="Snapshot agent source for self improvement",
