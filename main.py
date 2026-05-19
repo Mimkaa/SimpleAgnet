@@ -5,6 +5,7 @@ from agent.storage.artifacts import Artifacts
 from agent.agent_loop import AgentLoop
 from agent.interfaces.cli_interface import CliInterface
 from agent.workflows.firewall_project import FirewallProjectWorkflow
+from agent.workflows.job_application import JobApplicationWorkflow
 
 
 def main():
@@ -18,7 +19,8 @@ def main():
         task_store=task_store,
         event_log=event_log,
         workflows=[
-            FirewallProjectWorkflow()
+            FirewallProjectWorkflow(),
+            JobApplicationWorkflow()
         ],
         artifacts=artifacts,
         target_project_dir=cfg.TARGET_PROJECT_DIR,

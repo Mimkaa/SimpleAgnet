@@ -1289,7 +1289,7 @@ class AgentLoop:
 
         elif action["tool"] == "apply_safe_change":
             result = self.apply_safe_change(task, action)
-            
+
         elif action["tool"] == "self_improvement_pipeline":
             result = self.execute_approved_self_improvement_pipeline()
 
@@ -1419,6 +1419,62 @@ class AgentLoop:
 
     def create_fallback_task_from_goal(self, goal: str) -> Task:
         lower_goal = goal.lower()
+
+        if "snapshot workflow system for job application workflow" in lower_goal:
+            return Task(
+                title="Snapshot workflow system for job application workflow",
+                description="Read workflow registration and existing workflow files before adding a job-application workflow.",
+                inputs=[],
+                outputs=["workflow_system_snapshot.md"],
+                tool_hint="source_snapshot",
+                kind="normal",
+                action={
+                    "tool": "source_snapshot",
+                    "root": str(Path(__file__).resolve().parents[1]),
+                    "files": [
+                        "agent/main.py",
+                        "agent/agent_loop.py",
+                        "agent/workflows/__init__.py",
+                        "agent/workflows/job_application.py",
+                    ],
+                    "output": "workflow_system_snapshot.md",
+                    "outputs": ["workflow_system_snapshot.md"],
+                    "reason": "Find where workflows are registered and how a new adaptive job application workflow should be added.",
+                },
+            )
+
+        if "plan adaptive workflow for job applications" in lower_goal:
+            return Task(
+                title="Plan adaptive job application workflow",
+                description=(
+                    "Create a plan for an adaptive job-application workflow. "
+                    "The workflow should identify what the agent can already do, "
+                    "what capability is missing, and when to trigger a safe self-improvement proposal."
+                ),
+                inputs=[
+                    "core_source_snapshot.md",
+                    "self_improvement_plan.md",
+                ],
+                outputs=[
+                    "adaptive_job_application_workflow_plan.md",
+                ],
+                tool_hint="artifact_transform",
+                kind="normal",
+                action={
+                    "tool": "artifact_transform",
+                    "inputs": [
+                        "core_source_snapshot.md",
+                        "self_improvement_plan.md",
+                    ],
+                    "outputs": [
+                        "adaptive_job_application_workflow_plan.md",
+                    ],
+                    "reason": (
+                        "Design the first adaptive workflow for job applications, "
+                        "including when to use existing tools and when to propose self-improvement."
+                    ),
+                },
+            )
 
         if "execute approved self-improvement pipeline" in lower_goal:
             return Task(
