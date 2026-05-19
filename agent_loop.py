@@ -1325,6 +1325,31 @@ class AgentLoop:
     def create_fallback_task_from_goal(self, goal: str) -> Task:
         lower_goal = goal.lower()
 
+        if "approve latest self-improvement proposal" in lower_goal:
+            task = self.create_task_from_self_improvement_apply_artifact(
+                "self_improvement_apply_task.md"
+            )
+
+            if task:
+                return Task(
+                    title="Approved latest self-improvement proposal",
+                    description=f"Queued approved self-improvement task: {task.title}",
+                    kind="normal",
+                    tool_hint="shell",
+                    action={
+                        "tool": "shell",
+                        "command": "echo approved latest self-improvement proposal",
+                        "outputs": [],
+                        "reason": "Confirm approved self-improvement task was queued.",
+                    },
+                )
+
+            return Task(
+                title="Approve latest self-improvement proposal failed",
+                description="Could not queue task from self_improvement_apply_task.md.",
+                kind="normal",
+            )
+
         if "queue self-improvement apply task" in lower_goal:
             task = self.create_task_from_self_improvement_apply_artifact(
                 "self_improvement_apply_task.md"
