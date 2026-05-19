@@ -1079,6 +1079,16 @@ class AgentLoop:
         except json.JSONDecodeError:
             return None
 
+    def run_agent_regression_tests_now(self):
+        return self.run_tool(
+            "shell",
+            command=(
+                'cd /d "C:\\Users\\illa9\\Downloads\\minimal_agent_repo\\minimal_agent_repo" '
+                '&& python -m pytest agent/tests/test_apply_safe_change.py'
+            ),
+            cwd=str(Path(__file__).resolve().parents[1]),
+        )
+
     def create_agent_regression_test_task(self):
         task = Task(
             title="Run agent regression tests",
@@ -1304,15 +1314,22 @@ class AgentLoop:
             self.mark_done(task.id)
 
             if (
-                action.get("tool") == "apply_safe_change"
-                and action.get("root") == str(Path(__file__).resolve().parents[1])
+                    action.get("tool") == "apply_safe_change"
+                    and action.get("root") == str(Path(__file__).resolve().parents[1])
             ):
-                regression_task = self.create_agent_regression_test_task()
-                result["created_regression_task"] = {
-                    "id": regression_task.id,
-                    "title": regression_task.title,
-                    "status": regression_task.status,
+                regression_result = self.run_agent_regression_tests_now()
+
+                result["automatic_regression_result"] = {
+                    "ok": regression_result.get("ok"),
+                    "returncode": regression_result.get("returncode"),
+                    "stdout": regression_result.get("stdout", ""),
+                    "stderr": regression_result.get("stderr", ""),
                 }
+
+                if not regression_result.get("ok"):
+                    result["ok"] = False
+                    result["verification"]["status"] = "FAIL"
+                    result["verification"]["reason"] = "Automatic regression tests failed after self-improvement."
 
             if getattr(task, "kind", "normal") == "repair":
                 followup_task = self.create_followup_task_from_repair_report(
