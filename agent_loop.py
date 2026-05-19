@@ -1289,6 +1289,9 @@ class AgentLoop:
 
         elif action["tool"] == "apply_safe_change":
             result = self.apply_safe_change(task, action)
+            
+        elif action["tool"] == "self_improvement_pipeline":
+            result = self.execute_approved_self_improvement_pipeline()
 
         else:
             return {
@@ -1372,8 +1375,62 @@ class AgentLoop:
 
         return result
 
+    def execute_approved_self_improvement_pipeline(self):
+        apply_task = self.create_task_from_self_improvement_apply_artifact(
+            "self_improvement_apply_task.md"
+        )
+
+        if not apply_task:
+            return {
+                "ok": False,
+                "message": "Could not create approved self-improvement apply task.",
+            }
+
+        action = self.selector.select_action(apply_task)
+        result = self.apply_safe_change(apply_task, action)
+
+        verification = self.verifier.verify_action_result(apply_task, action, result)
+
+        result["verification"] = {
+            "status": verification.status,
+            "reason": verification.reason,
+            "exit_code": verification.exit_code,
+        }
+
+        if verification.status == "PASS":
+            self.mark_done(apply_task.id)
+
+            regression_result = self.run_agent_regression_tests_now()
+            result["automatic_regression_result"] = {
+                "ok": regression_result.get("ok"),
+                "returncode": regression_result.get("returncode"),
+                "stdout": regression_result.get("stdout", ""),
+                "stderr": regression_result.get("stderr", ""),
+            }
+
+            if not regression_result.get("ok"):
+                result["ok"] = False
+                result["verification"]["status"] = "FAIL"
+                result["verification"]["reason"] = "Automatic regression tests failed."
+        else:
+            self.mark_failed(apply_task.id, verification.reason)
+
+        return result
+
     def create_fallback_task_from_goal(self, goal: str) -> Task:
         lower_goal = goal.lower()
+
+        if "execute approved self-improvement pipeline" in lower_goal:
+            return Task(
+                title="Execute approved self-improvement pipeline",
+                description="Apply the latest approved self-improvement task and run regression tests automatically.",
+                kind="normal",
+                tool_hint="self_improvement_pipeline",
+                action={
+                    "tool": "self_improvement_pipeline",
+                    "reason": "Execute approved proposal, safe apply, and automatic regression verification.",
+                },
+            )
 
         if "approve latest self-improvement proposal" in lower_goal:
             task = self.create_task_from_self_improvement_apply_artifact(

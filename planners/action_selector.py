@@ -46,6 +46,15 @@ class ActionSelector:
                 ),
             }
 
+        if tool == "self_improvement_pipeline":
+            return {
+                "tool": "self_improvement_pipeline",
+                "reason": action_config.get(
+                    "reason",
+                    "Task provided explicit self-improvement pipeline action.",
+                ),
+            }
+
         if tool == "source_snapshot":
             return {
                 "tool": "source_snapshot",
