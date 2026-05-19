@@ -592,7 +592,8 @@ class AgentLoop:
         if not outputs:
             return {"ok": False, "message": "No output artifact specified."}
 
-        target_path = self.target_project_dir / target_file
+        root = Path(action.get("root", self.target_project_dir))
+        target_path = root / target_file
 
         expected_text = action.get("expected_text", "datetime.now(timezone.utc)")
         forbidden_text = action.get("forbidden_text", "datetime.utcnow()")
@@ -639,16 +640,19 @@ class AgentLoop:
         rollback_done = False
         rollback_result = None
 
-        if expected_text in old_content and forbidden_text not in old_content:
+        expected_ok = expected_text is None or expected_text in old_content
+        forbidden_ok = forbidden_text is None or forbidden_text not in old_content
+
+        if expected_ok and forbidden_ok:
             run_result = self.run_tool(
                 "shell",
                 command=run_command,
-                cwd=str(self.target_project_dir),
+                cwd=str(root),
             )
 
             cleanup_result = None
 
-            if cleanup_after :
+            if cleanup_after:
                 cleanup_result = self.run_tool(
                     "file",
                     action="delete",
@@ -664,8 +668,8 @@ class AgentLoop:
                 "",
                 f"Target file: `{target_file}`",
                 "",
-                f"Expected text found: `{expected_text}`",
-                f"Forbidden text absent: `{forbidden_text}`",
+                f"Expected text found: `{expected_ok}`",
+                f"Forbidden text absent: `{forbidden_ok}`",
                 f"Setup file created: `{setup_created_file}`",
                 f"Cleanup requested: `{cleanup_after}`",
                 f"Cleanup result ok: `{cleanup_result.get('ok') if cleanup_result else None}`",
@@ -797,14 +801,14 @@ class AgentLoop:
 
         content_verified = (
                 verify_read_result.get("ok")
-                and expected_text in verify_content
-                and forbidden_text not in verify_content
+                and (expected_text is None or expected_text in verify_content)
+                and (forbidden_text is None or forbidden_text not in verify_content)
         )
 
         run_result = self.run_tool(
             "shell",
             command=run_command,
-            cwd=str(self.target_project_dir),
+            cwd=str(root),
         )
 
         cleanup_result = None
@@ -872,8 +876,8 @@ class AgentLoop:
             f"Backup file: `{backup_path}`",
             f"Backup cleanup result ok: `{backup_cleanup_result.get('ok') if backup_cleanup_result else None}`",
             f"Rollback done: `{rollback_done}`",
-            f"Expected text found: `{expected_text in verify_content}`",
-            f"Forbidden text absent: `{forbidden_text not in verify_content}`",
+            f"Expected text found: `{expected_text is None or expected_text in verify_content}`",
+            f"Forbidden text absent: `{forbidden_text is None or forbidden_text not in verify_content}`",
             f"Run command: `{run_command}`",
             f"Program run ok: `{bool(run_result.get('ok'))}`",
             f"Rollback cleanup result ok: `{rollback_cleanup_result.get('ok') if rollback_cleanup_result else None}`",
@@ -936,7 +940,6 @@ class AgentLoop:
             "rollback_result": rollback_result,
             "backup_cleanup_result": backup_cleanup_result,
             "rollback_cleanup_result": rollback_cleanup_result,
-
         }
 
     def create_repair_task_from_failure(self, failed_task, action, result, verification):
@@ -1028,6 +1031,95 @@ class AgentLoop:
         )
 
         return repair_task
+
+    def build_replacement_from_patch_lines(self, patch_lines: list[str]):
+        old_lines = []
+        new_lines = []
+
+        for line in patch_lines:
+            if (
+                    line.startswith("diff ")
+                    or line.startswith("--- ")
+                    or line.startswith("+++ ")
+                    or line.startswith("@@")
+            ):
+                continue
+
+            if line == " ":
+                old_lines.append("")
+                new_lines.append("")
+            elif line.startswith("+"):
+                new_lines.append(line[1:])
+            elif line.startswith("-"):
+                old_lines.append(line[1:])
+            elif line.startswith(" "):
+                old_lines.append(line[1:])
+                new_lines.append(line[1:])
+            else:
+                old_lines.append(line)
+                new_lines.append(line)
+
+        old_text = "\n".join(old_lines).rstrip()
+        new_text = "\n".join(new_lines).rstrip()
+
+        if not old_text or not new_text or old_text == new_text:
+            return None, None
+
+        return old_text, new_text
+
+    def extract_json_block(self, text: str):
+        pattern = r"```json\s*(\{.*?\})\s*```"
+        match = re.search(pattern, text, flags=re.DOTALL | re.IGNORECASE)
+
+        if not match:
+            return None
+
+        try:
+            return json.loads(match.group(1))
+        except json.JSONDecodeError:
+            return None
+
+    def create_task_from_self_improvement_apply_artifact(self, artifact_name: str):
+        if not self.artifacts.exists(artifact_name):
+            return None
+
+        text = self.artifacts.read_text(artifact_name)
+        data = self.extract_json_block(text)
+
+        if not data:
+            return None
+
+        action = data.get("action", {})
+        old_text, new_text = self.build_replacement_from_patch_lines(
+            action.get("patch_lines", [])
+        )
+
+        task = Task(
+            title=data.get("title", "Apply self-improvement change"),
+            description=action.get("summary", "Apply a self-improvement patch."),
+            inputs=[artifact_name],
+            outputs=["self_improvement_change_report.md"],
+            tool_hint="apply_safe_change",
+            kind=data.get("kind", "normal"),
+            action={
+                "tool": "apply_safe_change",
+                "root": str(Path(__file__).resolve().parents[1]),
+                "target_file": action.get("target_files", ["agent/agent_loop.py"])[0],
+                "outputs": ["self_improvement_change_report.md"],
+                "reason": "Apply self-improvement change generated from executable task artifact.",
+                "old_text": old_text,
+                "new_text": new_text,
+                "expected_text": "preflight_artifact_check",
+                "forbidden_text": None,
+                "run_command": (
+                    'cd /d "C:\\Users\\illa9\\Downloads\\minimal_agent_repo\\minimal_agent_repo" '
+                    '&& python -m py_compile agent/agent_loop.py'
+                ),
+            }
+        )
+
+        self.task_store.add_tasks([task])
+        return task
 
     def extract_next_action_from_report(self, report_text: str):
         marker = "NEXT_ACTION_JSON"
@@ -1232,6 +1324,63 @@ class AgentLoop:
 
     def create_fallback_task_from_goal(self, goal: str) -> Task:
         lower_goal = goal.lower()
+
+        if "queue self-improvement apply task" in lower_goal:
+            task = self.create_task_from_self_improvement_apply_artifact(
+                "self_improvement_apply_task.md"
+            )
+
+            if task:
+                return Task(
+                    title="Queued self-improvement apply task",
+                    description=f"Created queued task: {task.title}",
+                    kind="normal",
+                    action={
+                        "tool": "shell",
+                        "command": "echo queued self-improvement apply task",
+                        "outputs": [],
+                        "reason": "Confirm task was queued.",
+                    },
+                    tool_hint="shell",
+                )
+
+            return Task(
+                title="Queue self-improvement apply task failed",
+                description="Could not create task from self_improvement_apply_task.md.",
+                kind="normal",
+            )
+
+        if "apply executable self-improvement task" in lower_goal:
+            return Task(
+                title="Create apply-safe-change task from executable self-improvement task",
+                description="Convert the executable self-improvement task artifact into a structured apply_safe_change task JSON.",
+                inputs=["self_improvement_executable_task.md"],
+                outputs=["self_improvement_apply_task.md"],
+                tool_hint="artifact_transform",
+                kind="normal",
+                action={
+                    "tool": "artifact_transform",
+                    "inputs": ["self_improvement_executable_task.md"],
+                    "outputs": ["self_improvement_apply_task.md"],
+                    "reason": "Extract target file, old_text, new_text, expected_text, forbidden_text, and run_command into executable JSON.",
+                },
+            )
+
+        if "create executable self-improvement task" in lower_goal:
+            return Task(
+                title="Create executable self-improvement task",
+                description="Convert the self-improvement patch proposal into one executable safe-change task.",
+                inputs=["self_improvement_patch_proposal.md"],
+                outputs=["self_improvement_executable_task.md"],
+                tool_hint="artifact_transform",
+                kind="normal",
+                action={
+                    "tool": "artifact_transform",
+                    "inputs": ["self_improvement_patch_proposal.md"],
+                    "outputs": ["self_improvement_executable_task.md"],
+                    "reason": "Convert patch proposal into executable apply_safe_change JSON.",
+                },
+            )
 
         if "run agent regression tests" in lower_goal:
             return Task(
