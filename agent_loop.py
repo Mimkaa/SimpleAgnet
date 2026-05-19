@@ -1079,6 +1079,28 @@ class AgentLoop:
         except json.JSONDecodeError:
             return None
 
+    def create_agent_regression_test_task(self):
+        task = Task(
+            title="Run agent regression tests",
+            description="Run the agent's automated regression tests after an approved self-improvement change.",
+            inputs=[],
+            outputs=["agent_regression_test_results.md"],
+            tool_hint="shell",
+            kind="test",
+            action={
+                "tool": "shell",
+                "command": (
+                    'cd /d "C:\\Users\\illa9\\Downloads\\minimal_agent_repo\\minimal_agent_repo" '
+                    '&& python -m pytest agent/tests/test_apply_safe_change.py'
+                ),
+                "outputs": ["agent_regression_test_results.md"],
+                "reason": "Automatically verify agent behavior after self-improvement.",
+            },
+        )
+
+        self.task_store.add_tasks([task])
+        return task
+
     def create_task_from_self_improvement_apply_artifact(self, artifact_name: str):
         if not self.artifacts.exists(artifact_name):
             return None
@@ -1280,6 +1302,17 @@ class AgentLoop:
 
         if verification.status == "PASS":
             self.mark_done(task.id)
+
+            if (
+                action.get("tool") == "apply_safe_change"
+                and action.get("root") == str(Path(__file__).resolve().parents[1])
+            ):
+                regression_task = self.create_agent_regression_test_task()
+                result["created_regression_task"] = {
+                    "id": regression_task.id,
+                    "title": regression_task.title,
+                    "status": regression_task.status,
+                }
 
             if getattr(task, "kind", "normal") == "repair":
                 followup_task = self.create_followup_task_from_repair_report(
