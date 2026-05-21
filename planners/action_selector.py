@@ -91,6 +91,32 @@ class ActionSelector:
                 ),
             }
 
+        if tool == "materialize_artifact":
+            return {
+                "tool": "materialize_artifact",
+                "input": action_config["input"],
+                "root": action_config.get("root", "target_project"),
+                "target_file": action_config["target_file"],
+                "reason": action_config.get(
+                    "reason",
+                    "Task provided explicit materialize artifact action.",
+                ),
+            }
+
+        if tool == "verify_target_file":
+            return {
+                "tool": "verify_target_file",
+                "root": action_config.get("root", "target_project"),
+                "target_file": action_config["target_file"],
+                "must_contain": action_config.get("must_contain", []),
+                "must_contain_from_artifact": action_config.get("must_contain_from_artifact"),
+                "outputs": action_config.get("outputs", task.outputs),
+                "reason": action_config.get(
+                    "reason",
+                    "Task provided explicit target file verification action.",
+                ),
+            }
+
         return {
             "tool": "none",
             "reason": f"Unknown explicit tool: {tool}",
@@ -107,6 +133,14 @@ class ActionSelector:
                 "inputs": task.inputs,
                 "outputs": task.outputs,
                 "reason": "Fallback: task requested artifact analysis/transformation.",
+            }
+
+        if task.tool_hint == "artifact_transform":
+            return {
+                "tool": "artifact_transform",
+                "inputs": task.inputs,
+                "outputs": task.outputs,
+                "reason": "Fallback: task requested artifact transformation.",
             }
 
         if task.tool_hint == "shell":

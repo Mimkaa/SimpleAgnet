@@ -83,6 +83,18 @@ class AgentLoop:
         )
         return [fallback]
 
+    def clear_pending_tasks(self) -> int:
+        removed = self.task_store.clear_pending()
+
+        self.event_log.write(
+            "pending_tasks_cleared",
+            {
+                "removed": removed,
+            },
+        )
+
+        return removed
+
     def list_tasks(self):
         return self.task_store.list_tasks()
 
@@ -471,6 +483,12 @@ class AgentLoop:
 
             analyzer_used = "openai"
 
+            if output_name == "cover_letter_verification_requirements.md":
+                content = self.ensure_must_contain_requirements(
+                    content=content,
+                    input_contents=input_contents,
+                )
+
         except Exception as e:
             content = self.simple_artifact_analysis(
                 task=task,
@@ -479,6 +497,13 @@ class AgentLoop:
             )
 
             analyzer_used = "fallback_simple"
+
+            if output_name == "cover_letter_verification_requirements.md":
+                content = self.ensure_must_contain_requirements(
+                    content=content,
+                    input_contents=input_contents,
+                )
+
             self.event_log.write(
                 "artifact_analyzer_failed",
                 {
@@ -510,31 +535,44 @@ class AgentLoop:
     def create_source_snapshot(self, task: Task, action: dict):
         from pathlib import Path
 
-        root = Path(action.get("root", self.target_project_dir))
+        root_value = action.get("root", "target_project")
+
+        if root_value == "target_project":
+            root = Path(self.target_project_dir)
+        else:
+            root = Path(root_value)
+
         files = action.get("files", [])
         outputs = action.get("outputs", [])
 
-        output_name = action.get("output")
-        if output_name:
-            output_name = Path(output_name).name
-        elif outputs:
+        if outputs:
             output_name = outputs[0]
         else:
-            return {
-                "ok": False,
-                "message": "No output artifact specified.",
-            }
+            output_name = action.get("output")
+            if output_name:
+                output_name = Path(output_name).name
+            else:
+                return {
+                    "ok": False,
+                    "message": "No output artifact specified.",
+                }
 
         parts = []
 
         for file_path in files:
             target_file_path = root / file_path
 
-            result = self.run_tool(
-                "file",
-                action="read",
-                path=str(target_file_path),
-            )
+            try:
+                result = self.run_tool(
+                    "file",
+                    action="read",
+                    path=str(target_file_path),
+                )
+            except Exception as e:
+                result = {
+                    "ok": False,
+                    "error": repr(e),
+                }
 
             if not result.get("ok"):
                 parts.append(
@@ -554,12 +592,12 @@ class AgentLoop:
                 f"Target path:\n\n"
                 f"```text\n{target_file_path}\n```\n\n"
                 f"Source:\n\n"
-                f"```python\n{content}\n```\n"
+                f"```text\n{content}\n```\n"
             )
 
         artifact_content = (
-                "# Core Source Snapshot\n\n"
-                "This artifact contains the source files used to confirm runtime behavior.\n\n"
+                "# Source Snapshot\n\n"
+                "This artifact contains selected files from the target project.\n\n"
                 f"Target project directory:\n\n"
                 f"```text\n{root}\n```\n\n"
                 + "\n\n".join(parts)
@@ -580,6 +618,315 @@ class AgentLoop:
             "ok": True,
             "artifact": str(artifact_path),
             "output": output_name,
+        }
+
+    def ensure_must_contain_requirements(self, content: str, input_contents: dict) -> str:
+        extracted = self.extract_must_contain_requirements(content)
+
+        if extracted:
+            return content
+
+        cover_letter = input_contents.get("tailored_cover_letter.md", "")
+
+        candidates = [
+            "Test Candidate",
+            "Junior Software Developer Intern",
+            "ExampleTech AG",
+            "University of Basel",
+            "Java",
+            "Python",
+            "Git",
+            "JavaFX",
+            "client-server",
+            "Client-server",
+            "Minimal Agent CLI",
+            "multiplayer game",
+            "Multiplayer Java Game",
+        ]
+
+        found = []
+
+        for item in candidates:
+            if item in cover_letter:
+                found.append(item)
+
+        if not found:
+            # Emergency fallback: use short non-empty lines from the cover letter.
+            for line in cover_letter.splitlines():
+                clean = line.strip().strip("*").strip()
+
+                if not clean:
+                    continue
+
+                if clean.startswith("#"):
+                    continue
+
+                if len(clean) > 80:
+                    continue
+
+                found.append(clean)
+
+                if len(found) >= 5:
+                    break
+
+        # Deduplicate while preserving order.
+        seen = set()
+        found = [
+            item for item in found
+            if item and not (item in seen or seen.add(item))
+        ]
+
+        found = found[:10]
+
+        if not found:
+            return (
+                "# Cover Letter Verification Requirements\n\n"
+                "## Must contain\n"
+            )
+
+        return (
+                "# Cover Letter Verification Requirements\n\n"
+                "## Must contain\n"
+                + "\n".join(f"- {item}" for item in found)
+                + "\n"
+        )
+
+    def extract_must_contain_requirements(self, text: str) -> list[str]:
+        lines = text.splitlines()
+
+        in_section = False
+        items = []
+
+        for line in lines:
+            stripped = line.strip()
+
+            if stripped.lower() == "## must contain":
+                in_section = True
+                continue
+
+            if in_section and stripped.startswith("## "):
+                break
+
+            if not in_section:
+                continue
+
+            if stripped.startswith("- "):
+                item = stripped[2:].strip()
+
+                # Remove common markdown formatting.
+                item = item.strip("`").strip()
+                item = item.strip("*").strip()
+
+                if item:
+                    items.append(item)
+
+        return items
+
+    def verify_target_file(self, task: Task, action: dict):
+        from pathlib import Path
+
+        root_value = action.get("root", "target_project")
+        target_file = action.get("target_file")
+        must_contain = list(action.get("must_contain", []) or [])
+        must_contain_from_artifact = action.get("must_contain_from_artifact")
+        outputs = action.get("outputs", [])
+
+        if not target_file:
+            return {
+                "ok": False,
+                "message": "No target file specified.",
+            }
+
+        if not outputs:
+            return {
+                "ok": False,
+                "message": "No output artifact specified.",
+            }
+
+        if must_contain_from_artifact:
+            if not self.artifacts.exists(must_contain_from_artifact):
+                return {
+                    "ok": False,
+                    "message": f"Verification requirements artifact not found: {must_contain_from_artifact}",
+                }
+
+            requirements_text = self.artifacts.read_text(must_contain_from_artifact)
+            extracted = self.extract_must_contain_requirements(requirements_text)
+
+            if not extracted:
+                return {
+                    "ok": False,
+                    "message": (
+                        "Verification requirements artifact was provided, "
+                        "but no must-contain requirements could be extracted."
+                    ),
+                    "requirements_artifact": must_contain_from_artifact,
+                }
+
+            must_contain.extend(extracted)
+
+        # Deduplicate while keeping order.
+        seen = set()
+        must_contain = [
+            item for item in must_contain
+            if item and not (item in seen or seen.add(item))
+        ]
+
+        if root_value == "target_project":
+            root = Path(self.target_project_dir)
+        else:
+            root = Path(root_value)
+
+        target_path = root / target_file
+
+        try:
+            result = self.run_tool(
+                "file",
+                action="read",
+                path=str(target_path),
+            )
+        except Exception as e:
+            result = {
+                "ok": False,
+                "error": repr(e),
+                "content": "",
+            }
+
+        content = result.get("content", "")
+        missing = [text for text in must_contain if text not in content]
+
+        ok = bool(result.get("ok")) and not missing
+
+        report = [
+            "# Target File Verification",
+            "",
+            f"Target file: `{target_path}`",
+            "",
+            f"File readable: `{bool(result.get('ok'))}`",
+            f"Overall ok: `{ok}`",
+            "",
+            "## Verification source",
+            "",
+            f"- Static requirements count: `{len(action.get('must_contain', []) or [])}`",
+            f"- Dynamic requirements artifact: `{must_contain_from_artifact}`",
+            f"- Total required text checks: `{len(must_contain)}`",
+            "",
+            "## Required text checks",
+            "",
+        ]
+
+        for text in must_contain:
+            status = "PASS" if text in content else "FAIL"
+            report.append(f"- `{text}`: `{status}`")
+
+        if missing:
+            report.extend([
+                "",
+                "## Missing required text",
+                "",
+            ])
+
+            for text in missing:
+                report.append(f"- `{text}`")
+
+        artifact_path = self.artifacts.write_text(outputs[0], "\n".join(report))
+
+        self.event_log.write(
+            "target_file_verified",
+            {
+                "task_id": task.id,
+                "target_file": str(target_path),
+                "ok": ok,
+                "missing": missing,
+                "artifact": str(artifact_path),
+                "must_contain_from_artifact": must_contain_from_artifact,
+            },
+        )
+
+        return {
+            "ok": ok,
+            "target_file": str(target_path),
+            "missing": missing,
+            "artifact": str(artifact_path),
+            "output": outputs[0],
+            "must_contain": must_contain,
+            "must_contain_from_artifact": must_contain_from_artifact,
+        }
+
+    def materialize_artifact(self, task: Task, action: dict):
+        from pathlib import Path
+
+        input_name = action.get("input")
+        target_file = action.get("target_file")
+        root_value = action.get("root", "target_project")
+
+        if not input_name:
+            return {
+                "ok": False,
+                "message": "No input artifact specified.",
+            }
+
+        if not target_file:
+            return {
+                "ok": False,
+                "message": "No target file specified.",
+            }
+
+        if not self.artifacts.exists(input_name):
+            return {
+                "ok": False,
+                "message": f"Input artifact not found: {input_name}",
+            }
+
+        if root_value == "target_project":
+            root = Path(self.target_project_dir)
+        else:
+            root = Path(root_value)
+
+        target_path = root / target_file
+
+        content = self.artifacts.read_text(input_name)
+
+        try:
+            write_result = self.run_tool(
+                "file",
+                action="write",
+                path=str(target_path),
+                content=content,
+            )
+        except Exception as e:
+            return {
+                "ok": False,
+                "message": "Could not write artifact to target file.",
+                "error": repr(e),
+                "input": input_name,
+                "target_file": str(target_path),
+            }
+
+        if not write_result.get("ok"):
+            return {
+                "ok": False,
+                "message": "File tool failed while writing artifact to target file.",
+                "input": input_name,
+                "target_file": str(target_path),
+                "write_result": write_result,
+            }
+
+        self.event_log.write(
+            "artifact_materialized",
+            {
+                "task_id": task.id,
+                "input_artifact": input_name,
+                "target_file": str(target_path),
+                "reason": action.get("reason", ""),
+            },
+        )
+
+        return {
+            "ok": True,
+            "input": input_name,
+            "target_file": str(target_path),
+            "write_result": write_result,
         }
 
     def apply_safe_change(self, task: Task, action: dict):
@@ -1290,8 +1637,15 @@ class AgentLoop:
         elif action["tool"] == "apply_safe_change":
             result = self.apply_safe_change(task, action)
 
+        elif action["tool"] == "verify_target_file":
+            result = self.verify_target_file(task, action)
+
         elif action["tool"] == "self_improvement_pipeline":
             result = self.execute_approved_self_improvement_pipeline()
+
+
+        elif action["tool"] == "materialize_artifact":
+            result = self.materialize_artifact(task, action)
 
         else:
             return {

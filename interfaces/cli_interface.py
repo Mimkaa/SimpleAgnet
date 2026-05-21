@@ -25,7 +25,7 @@ class CliInterface:
     def run(self):
         print("Minimal Agent CLI")
         print(
-            "Commands: help, goal <text>, tasks, next, exec, artifact <name>, "
+            "Commands: help, goal <text>, tasks, next, exec, clear-pending, artifact <name>, "
             "artifact-exists <name>, artifacts, done <id>, fail <id>, "
             "shell <cmd>, log, exit"
         )
@@ -46,6 +46,7 @@ class CliInterface:
                 break
 
             if line == "help":
+                print("clear-pending          - remove all pending tasks")
                 print("goal <text>            - create tasks from goal")
                 print("tasks                  - list tasks")
                 print("next                   - show next pending task + suggested action")
@@ -65,6 +66,11 @@ class CliInterface:
                 tasks = self.agent.create_goal(goal)
                 for t in tasks:
                     print(f"[{t.status}] {t.id} - {t.title}")
+                continue
+
+            if line == "clear-pending":
+                removed = self.agent.clear_pending_tasks()
+                print(f"Cleared {removed} pending task(s).")
                 continue
 
             if line == "tasks":

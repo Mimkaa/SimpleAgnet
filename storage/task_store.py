@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from agent.state.task_state import Task
 
+
 class TaskStore:
     def __init__(self, path: Path):
         self.path = path
@@ -32,6 +33,17 @@ class TaskStore:
             if task.status == "pending":
                 return task
         return None
+
+    def clear_pending(self) -> int:
+        tasks = self._load()
+
+        before = len(tasks)
+        tasks = [task for task in tasks if task.status != "pending"]
+        removed = before - len(tasks)
+
+        self._save(tasks)
+
+        return removed
 
     def update_status(self, task_id, status):
         tasks = self._load()
