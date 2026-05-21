@@ -451,6 +451,25 @@ class AgentLoop:
             + "\n\nNo specialized analyzer exists for this output yet.\n"
         )
 
+    def strip_markdown_code_fences(self, content: str) -> str:
+        lines = content.splitlines()
+        cleaned = []
+        removed_any = False
+
+        for line in lines:
+            stripped = line.strip().lower()
+
+            if stripped in {"```", "```markdown", "```md", "```text"}:
+                removed_any = True
+                continue
+
+            cleaned.append(line)
+
+        if removed_any:
+            return "\n".join(cleaned).strip() + "\n"
+
+        return content
+
     def transform_artifacts(self, task: Task, action: dict):
         inputs = action.get("inputs", [])
         outputs = action.get("outputs", [])
@@ -535,6 +554,14 @@ class AgentLoop:
                     input_contents=input_contents,
                 )
 
+        outputs_to_strip_fences = {
+            "tailored_cover_letter.md",
+            "generated_cover_letter.md",
+        }
+
+        if output_name in outputs_to_strip_fences:
+            content = self.strip_markdown_code_fences(content)
+
         artifact_path = self.artifacts.write_text(output_name, content)
 
         self.event_log.write(
@@ -553,6 +580,25 @@ class AgentLoop:
             "output": output_name,
             "analyzer": analyzer_used,
         }
+
+    def strip_outer_markdown_code_fence(self, content: str) -> str:
+        text = content.strip()
+
+        if not text.startswith("```"):
+            return content
+
+        lines = text.splitlines()
+
+        if len(lines) < 3:
+            return content
+
+        first_line = lines[0].strip().lower()
+        last_line = lines[-1].strip()
+
+        if first_line in {"```", "```markdown", "```md", "```text"} and last_line == "```":
+            return "\n".join(lines[1:-1]).strip() + "\n"
+
+        return content
 
     def create_source_snapshot(self, task: Task, action: dict):
         from pathlib import Path

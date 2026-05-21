@@ -71,19 +71,50 @@ class JobApplicationWorkflow:
                     ),
                 },
             ),
+
+            Task(
+                title="Extract structured job application context",
+                description=(
+                    "Extract structured candidate, job, company, and missing-information "
+                    "details from the local job application input inventory."
+                ),
+                inputs=["job_application_input_inventory.md"],
+                outputs=["structured_job_application_context.md"],
+                tool_hint="artifact_transform",
+                kind="normal",
+                action={
+                    "tool": "artifact_transform",
+                    "inputs": ["job_application_input_inventory.md"],
+                    "outputs": ["structured_job_application_context.md"],
+                    "reason": (
+                        "Extract a structured job application context from the input inventory. "
+                        "Use only facts present in the local files. "
+                        "Create sections exactly named: "
+                        "## Candidate, ## Job, ## Company Notes, ## Extra Notes, ## Missing Information. "
+                        "Under Candidate include name, education, skills, projects, experience, and languages. "
+                        "Under Job include position, company, location, responsibilities, requirements, and nice-to-have items. "
+                        "Under Missing Information list unknown contact details, availability, recipient, links, and application logistics. "
+                        "Do not invent facts."
+                    ),
+                },
+            ),
+
             Task(
                 title="Create job application readiness report",
                 description=(
                     "Analyze the discovered local inputs and explain what is available, "
                     "what is missing, and what can safely be drafted."
                 ),
-                inputs=["job_application_input_inventory.md"],
+                inputs=[
+                    "job_application_input_inventory.md",
+                    "structured_job_application_context.md",
+                ],
                 outputs=["job_application_readiness_report.md"],
                 tool_hint="artifact_transform",
                 kind="normal",
                 action={
                     "tool": "artifact_transform",
-                    "inputs": ["job_application_input_inventory.md"],
+                    "inputs": ["job_application_input_inventory.md", "structured_job_application_context.md"],
                     "outputs": ["job_application_readiness_report.md"],
                     "reason": (
                         "Create a readiness report for the job application request. "
@@ -102,7 +133,7 @@ class JobApplicationWorkflow:
                     "with clear placeholders."
                 ),
                 inputs=[
-                    "job_application_input_inventory.md",
+                    "structured_job_application_context.md",
                     "job_application_readiness_report.md",
                 ],
                 outputs=["tailored_cover_letter.md"],
@@ -111,7 +142,7 @@ class JobApplicationWorkflow:
                 action={
                     "tool": "artifact_transform",
                     "inputs": [
-                        "job_application_input_inventory.md",
+                        "structured_job_application_context.md",
                         "job_application_readiness_report.md",
                     ],
                     "outputs": ["tailored_cover_letter.md"],
@@ -132,7 +163,7 @@ class JobApplicationWorkflow:
                     "unsupported claims, and consistency with the available local data."
                 ),
                 inputs=[
-                    "job_application_input_inventory.md",
+                    "structured_job_application_context.md",
                     "job_application_readiness_report.md",
                     "tailored_cover_letter.md",
                 ],
@@ -142,7 +173,7 @@ class JobApplicationWorkflow:
                 action={
                     "tool": "artifact_transform",
                     "inputs": [
-                        "job_application_input_inventory.md",
+                        "structured_job_application_context.md",
                         "job_application_readiness_report.md",
                         "tailored_cover_letter.md",
                     ],
@@ -224,7 +255,7 @@ class JobApplicationWorkflow:
                     "Verify that the generated cover letter was written into the target "
                     "project folder and contains expected job application content."
                 ),
-                inputs=[],
+                inputs=["cover_letter_verification_requirements.md"],
                 outputs=["materialized_cover_letter_verification.md"],
                 tool_hint="verify_target_file",
                 kind="normal",
