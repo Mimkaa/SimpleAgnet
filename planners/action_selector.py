@@ -69,6 +69,9 @@ class ActionSelector:
                     "reason",
                     "Task provided explicit source snapshot action.",
                 ),
+                "patterns": action_config.get("patterns", []),
+                "exclude_files": action_config.get("exclude_files", []),
+                "exclude_patterns": action_config.get("exclude_patterns", []),
             }
 
         if tool == "apply_safe_change":

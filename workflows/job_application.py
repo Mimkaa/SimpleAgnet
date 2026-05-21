@@ -33,18 +33,40 @@ class JobApplicationWorkflow:
                     "root": "target_project",
                     "files": [
                         "cv.md",
+                        "cv.txt",
                         "resume.md",
+                        "resume.txt",
                         "profile.md",
+                        "profile.txt",
                         "candidate_profile.md",
+                        "candidate_profile.txt",
                         "job_posting.md",
+                        "job_posting.txt",
                         "company_notes.md",
+                        "company_notes.txt",
                         "cover_letter.md",
+                        "cover_letter.txt",
+                    ],
+                    "patterns": [
+                        "*.md",
+                        "*.txt",
+                    ],
+                    "exclude_files": [
+                        "generated_cover_letter.md",
+                        "job_application_final_review.md",
+                    ],
+                    "exclude_patterns": [
+                        "generated_*",
+                        "*_verification.md",
+                        "job_application_*_review.md",
                     ],
                     "outputs": ["job_application_input_inventory.md"],
                     "reason": (
                         "Collect the available local data for a job application workflow. "
-                        "Read only from the configured target project directory. "
-                        "Missing files should be reported clearly instead of invented. "
+                        "Read markdown and text files from the configured target project directory. "
+                        "Missing expected files should be reported clearly instead of invented. "
+                        "Generated files, verification files, and previous review outputs should be excluded "
+                        "so they do not pollute the next run. "
                         f"Original user goal: {goal}"
                     ),
                 },
