@@ -54,19 +54,21 @@ class JobApplicationWorkflow:
                     "exclude_files": [
                         "generated_cover_letter.md",
                         "job_application_final_review.md",
+                        "application_package.md",
                     ],
                     "exclude_patterns": [
                         "generated_*",
                         "*_verification.md",
                         "job_application_*_review.md",
+                        "application_package.md",
                     ],
                     "outputs": ["job_application_input_inventory.md"],
                     "reason": (
                         "Collect the available local data for a job application workflow. "
                         "Read markdown and text files from the configured target project directory. "
                         "Missing expected files should be reported clearly instead of invented. "
-                        "Generated files, verification files, and previous review outputs should be excluded "
-                        "so they do not pollute the next run. "
+                        "Generated files, verification files, previous review outputs, and application packages "
+                        "should be excluded so they do not pollute the next run. "
                         f"Original user goal: {goal}"
                     ),
                 },
@@ -114,7 +116,10 @@ class JobApplicationWorkflow:
                 kind="normal",
                 action={
                     "tool": "artifact_transform",
-                    "inputs": ["job_application_input_inventory.md", "structured_job_application_context.md"],
+                    "inputs": [
+                        "job_application_input_inventory.md",
+                        "structured_job_application_context.md",
+                    ],
                     "outputs": ["job_application_readiness_report.md"],
                     "reason": (
                         "Create a readiness report for the job application request. "
@@ -125,6 +130,7 @@ class JobApplicationWorkflow:
                     ),
                 },
             ),
+
             Task(
                 title="Draft tailored cover letter",
                 description=(
@@ -156,6 +162,7 @@ class JobApplicationWorkflow:
                     ),
                 },
             ),
+
             Task(
                 title="Review final job application draft",
                 description=(
@@ -186,6 +193,7 @@ class JobApplicationWorkflow:
                     ),
                 },
             ),
+
             Task(
                 title="Extract cover letter verification requirements",
                 description=(
@@ -227,6 +235,7 @@ class JobApplicationWorkflow:
                     ),
                 },
             ),
+
             Task(
                 title="Write cover letter to target project",
                 description=(
@@ -290,6 +299,64 @@ class JobApplicationWorkflow:
                     "target_file": "job_application_final_review.md",
                     "reason": (
                         "Materialize the final review artifact into the target project folder."
+                    ),
+                },
+            ),
+
+            Task(
+                title="Create final application package",
+                description=(
+                    "Create a final application package artifact that combines the generated "
+                    "cover letter, missing-information checklist, verification result, and final review summary."
+                ),
+                inputs=[
+                    "structured_job_application_context.md",
+                    "tailored_cover_letter.md",
+                    "job_application_final_review.md",
+                    "materialized_cover_letter_verification.md",
+                ],
+                outputs=["application_package.md"],
+                tool_hint="artifact_transform",
+                kind="normal",
+                action={
+                    "tool": "artifact_transform",
+                    "inputs": [
+                        "structured_job_application_context.md",
+                        "tailored_cover_letter.md",
+                        "job_application_final_review.md",
+                        "materialized_cover_letter_verification.md",
+                    ],
+                    "outputs": ["application_package.md"],
+                    "reason": (
+                        "Create a clean final job application package. "
+                        "The package should contain: "
+                        "1. the final cover letter text, "
+                        "2. a missing-information checklist before sending, "
+                        "3. the verification result summary, "
+                        "4. a short final review summary. "
+                        "Use only facts from the input artifacts. "
+                        "Do not invent new candidate, company, job, contact, or availability details. "
+                        "Do not wrap the cover letter in markdown code fences."
+                    ),
+                },
+            ),
+
+            Task(
+                title="Write final application package to target project",
+                description=(
+                    "Write the final application package artifact into the target project folder."
+                ),
+                inputs=["application_package.md"],
+                outputs=[],
+                tool_hint="materialize_artifact",
+                kind="normal",
+                action={
+                    "tool": "materialize_artifact",
+                    "input": "application_package.md",
+                    "root": "target_project",
+                    "target_file": "application_package.md",
+                    "reason": (
+                        "Materialize the final application package into the target project folder."
                     ),
                 },
             ),
