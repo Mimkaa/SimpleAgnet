@@ -74,6 +74,7 @@ class JobApplicationWorkflow:
                         "tailored_cv_pdf_compile_result.md",
                         "tailored_cv_pdf_verification.md",
                         "tailored_cv_compile_diagnostic.md",
+                        "final_application_package.md",
                     ],
                     "exclude_patterns": [
                         "generated_*",
@@ -92,6 +93,7 @@ class JobApplicationWorkflow:
                         "tailored_cv_pdf_*.md",
                         "tailored_cv_*_diagnostic.md",
                         "tailored_cv_*_diagnostics.md",
+                        "final_application_package.md",
                     ],
                     "outputs": ["job_application_input_inventory.md"],
                     "reason": (
@@ -589,6 +591,68 @@ class JobApplicationWorkflow:
                     "outputs": ["tailored_cv_pdf_verification.md"],
                     "reason": (
                         "Verify that tailored_cv.pdf exists and is not empty."
+                    ),
+                },
+            ),
+
+            Task(
+                title="Create final application package index",
+                description=(
+                    "Create a final index of all generated application files and remaining manual steps."
+                ),
+                inputs=[
+                    "application_package.md",
+                    "job_application_final_review.md",
+                    "cover_letter_pdf_compile_result.md",
+                    "cover_letter_pdf_verification.md",
+                    "tailored_cv_pdf_compile_result.md",
+                    "tailored_cv_pdf_verification.md",
+                ],
+                outputs=["final_application_package.md"],
+                tool_hint="artifact_transform",
+                kind="normal",
+                action={
+                    "tool": "artifact_transform",
+                    "inputs": [
+                        "application_package.md",
+                        "job_application_final_review.md",
+                        "cover_letter_pdf_compile_result.md",
+                        "cover_letter_pdf_verification.md",
+                        "tailored_cv_pdf_compile_result.md",
+                        "tailored_cv_pdf_verification.md",
+                    ],
+                    "outputs": ["final_application_package.md"],
+                    "reason": (
+                        "Create a final application package index. "
+                        "This file should be a concise dashboard for the user. "
+                        "Include a section named 'Generated files' listing the expected target-project files: "
+                        "generated_cover_letter.md, cover_letter.tex, cover_letter.pdf, tailored_cv.tex, tailored_cv.pdf, "
+                        "job_application_final_review.md, application_package.md, and final_application_package.md. "
+                        "Include a section named 'PDF verification' summarizing whether the cover letter PDF and CV PDF were created. "
+                        "Include a section named 'Before sending checklist' with manual checks such as filling contact details, "
+                        "checking placeholders, reviewing PDFs visually, and attaching the correct PDFs. "
+                        "Use only information from the input artifacts. "
+                        "Do not invent contact details, recipient details, dates, links, or application submission instructions."
+                    ),
+                },
+            ),
+
+            Task(
+                title="Write final application package index to target project",
+                description=(
+                    "Write the final application package index into the target project folder."
+                ),
+                inputs=["final_application_package.md"],
+                outputs=[],
+                tool_hint="materialize_artifact",
+                kind="normal",
+                action={
+                    "tool": "materialize_artifact",
+                    "input": "final_application_package.md",
+                    "root": "target_project",
+                    "target_file": "final_application_package.md",
+                    "reason": (
+                        "Materialize the final application package index into the target project folder."
                     ),
                 },
             ),
