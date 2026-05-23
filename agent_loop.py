@@ -451,15 +451,70 @@ class AgentLoop:
             + "\n\nNo specialized analyzer exists for this output yet.\n"
         )
 
+    def protect_latex_square_bracket_placeholders(self, content: str) -> str:
+        def replace_placeholder(match):
+            inner = match.group(1).strip()
+            lower = inner.lower()
+
+            placeholder_keywords = [
+                "candidate",
+                "email",
+                "phone",
+                "address",
+                "linkedin",
+                "github",
+                "portfolio",
+                "date",
+                "hiring",
+                "manager",
+                "company",
+                "city",
+                "country",
+                "missing",
+                "available",
+            ]
+
+            if not any(keyword in lower for keyword in placeholder_keywords):
+                return match.group(0)
+
+            return "\\textnormal{\\lbrack{}" + inner + "\\rbrack{}}"
+
+        return re.sub(r"\[([^\[\]\n]+)\]", replace_placeholder, content)
+
+    def clean_latex_artifact(self, content: str) -> str:
+        content = self.strip_markdown_code_fences(content)
+
+        start = content.find("\\documentclass")
+        if start != -1:
+            content = content[start:]
+
+        end_marker = "\\end{document}"
+        end = content.find(end_marker)
+        if end != -1:
+            content = content[: end + len(end_marker)]
+
+        content = self.protect_latex_square_bracket_placeholders(content)
+
+        return content.strip() + "\n"
+
     def strip_markdown_code_fences(self, content: str) -> str:
         lines = content.splitlines()
         cleaned = []
         removed_any = False
 
+        fence_markers = {
+            "```",
+            "```markdown",
+            "```md",
+            "```text",
+            "```latex",
+            "```tex",
+        }
+
         for line in lines:
             stripped = line.strip().lower()
 
-            if stripped in {"```", "```markdown", "```md", "```text"}:
+            if stripped in fence_markers:
                 removed_any = True
                 continue
 
@@ -497,6 +552,7 @@ class AgentLoop:
             "tailored_cover_letter.md",
             "job_application_final_review.md",
             "cover_letter_verification_requirements.md",
+            "cover_letter.tex",
         }
 
         try:
@@ -557,10 +613,15 @@ class AgentLoop:
         outputs_to_strip_fences = {
             "tailored_cover_letter.md",
             "generated_cover_letter.md",
+            "application_package.md",
+            "cover_letter.tex",
         }
 
         if output_name in outputs_to_strip_fences:
             content = self.strip_markdown_code_fences(content)
+
+        if output_name == "cover_letter.tex":
+            content = self.clean_latex_artifact(content)
 
         artifact_path = self.artifacts.write_text(output_name, content)
 
@@ -1023,6 +1084,9 @@ class AgentLoop:
         target_path = root / target_file
 
         content = self.artifacts.read_text(input_name)
+
+        if target_file.endswith(".tex"):
+            content = self.clean_latex_artifact(content)
 
         try:
             write_result = self.run_tool(

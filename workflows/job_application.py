@@ -342,6 +342,119 @@ class JobApplicationWorkflow:
             ),
 
             Task(
+                title="Create LaTeX cover letter",
+                description=(
+                    "Create a LaTeX cover letter file from the tailored cover letter and "
+                    "structured job application context."
+                ),
+                inputs=[
+                    "structured_job_application_context.md",
+                    "tailored_cover_letter.md",
+                    "application_package.md",
+                ],
+                outputs=["cover_letter.tex"],
+                tool_hint="artifact_transform",
+                kind="normal",
+                action={
+                    "tool": "artifact_transform",
+                    "inputs": [
+                        "structured_job_application_context.md",
+                        "tailored_cover_letter.md",
+                        "application_package.md",
+                    ],
+                    "outputs": ["cover_letter.tex"],
+                    "reason": (
+                        "Create a clean standalone LaTeX cover letter. "
+                        "Output only valid LaTeX source code, no markdown code fences and no explanations. "
+                        "Use only this document class: \\documentclass[11pt,a4paper]{article}. "
+                        "Do not use the letter document class. "
+                        "Do not use \\begin{letter}, \\end{letter}, \\opening, \\closing, \\signature, or \\address. "
+                        "Write the letter manually using flushleft blocks, bold text, normal paragraphs, and line breaks. "
+                        "Use standard packages only: geometry, parskip, hyperref, enumitem if needed. "
+                        "The document should contain the actual cover letter text. "
+                        "Keep placeholders for missing contact details such as email, phone, address, date, "
+                        "and hiring manager if they are not available. "
+                        "Do not invent contact details, dates, links, availability, or company address. "
+                        "Escape LaTeX special characters where needed. "
+                        "Do not put placeholder text like [Candidate email] directly at the beginning of a line after a LaTeX line break. "
+                        "Represent placeholders using \\textnormal{\\lbrack{}Email address\\rbrack{}} or normal text such as "
+                        "Email address: \\textnormal{\\lbrack{}missing\\rbrack{}}. "
+                        "Do not use raw square-bracket placeholders immediately after \\\\ because LaTeX may treat them as optional line-break arguments. "
+                        "Prefer placeholders like \\textnormal{\\lbrack{}Date\\rbrack{}} instead of [Date]. "
+                        "The result must be compilable by pdflatex with exit code 0."
+                    ),
+                },
+            ),
+
+            Task(
+                title="Write LaTeX cover letter to target project",
+                description=(
+                    "Write the generated LaTeX cover letter into the target project folder."
+                ),
+                inputs=["cover_letter.tex"],
+                outputs=[],
+                tool_hint="materialize_artifact",
+                kind="normal",
+                action={
+                    "tool": "materialize_artifact",
+                    "input": "cover_letter.tex",
+                    "root": "target_project",
+                    "target_file": "cover_letter.tex",
+                    "reason": (
+                        "Materialize the LaTeX cover letter into the target project folder."
+                    ),
+                },
+            ),
+
+            Task(
+                title="Compile LaTeX cover letter to PDF",
+                description=(
+                    "Compile the generated LaTeX cover letter into a PDF in the target project folder."
+                ),
+                inputs=["cover_letter.tex"],
+                outputs=["cover_letter_pdf_compile_result.md"],
+                tool_hint="shell",
+                kind="normal",
+                action={
+                    "tool": "shell",
+                    "command": (
+                        "python -c \"from pathlib import Path; "
+                        "[p.unlink() for p in [Path('cover_letter.aux'), Path('cover_letter.out'), Path('cover_letter.log')] if p.exists()]\" "
+                        "&& pdflatex -interaction=nonstopmode -halt-on-error cover_letter.tex"
+                    ),
+                    "outputs": ["cover_letter_pdf_compile_result.md"],
+                    "reason": (
+                        "Compile cover_letter.tex into cover_letter.pdf using pdflatex."
+                    ),
+                },
+            ),
+
+            Task(
+                title="Verify compiled cover letter PDF",
+                description=(
+                    "Verify that cover_letter.pdf was created in the target project folder."
+                ),
+                inputs=["cover_letter_pdf_compile_result.md"],
+                outputs=["cover_letter_pdf_verification.md"],
+                tool_hint="shell",
+                kind="normal",
+                action={
+                    "tool": "shell",
+                    "command": (
+                        "python -c \"from pathlib import Path; "
+                        "p=Path('cover_letter.pdf'); "
+                        "print('exists=', p.exists()); "
+                        "print('size=', p.stat().st_size if p.exists() else 0); "
+                        "raise SystemExit(0 if p.exists() and p.stat().st_size > 0 else 1)\""
+                    ),
+                    "outputs": ["cover_letter_pdf_verification.md"],
+                    "reason": (
+                        "Verify that cover_letter.pdf exists and is not empty."
+                    ),
+                },
+            ),
+
+            Task(
                 title="Write final application package to target project",
                 description=(
                     "Write the final application package artifact into the target project folder."
