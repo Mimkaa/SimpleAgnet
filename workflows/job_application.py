@@ -55,20 +55,35 @@ class JobApplicationWorkflow:
                         "generated_cover_letter.md",
                         "job_application_final_review.md",
                         "application_package.md",
+                        "cover_letter.tex",
+                        "cover_letter.aux",
+                        "cover_letter.log",
+                        "cover_letter.out",
+                        "cover_letter.pdf",
+                        "cover_letter_source_context.md",
+                        "cover_letter_pdf_diagnostics.md",
+                        "cover_letter_pdf_compile_result.md",
+                        "cover_letter_pdf_verification.md",
                     ],
                     "exclude_patterns": [
                         "generated_*",
                         "*_verification.md",
                         "job_application_*_review.md",
                         "application_package.md",
+                        "cover_letter.*",
+                        "cover_letter_*_diagnostics.md",
+                        "cover_letter_*_context.md",
+                        "cover_letter_pdf_*.md",
+                        "repair_report_*.md",
                     ],
                     "outputs": ["job_application_input_inventory.md"],
                     "reason": (
                         "Collect the available local data for a job application workflow. "
                         "Read markdown and text files from the configured target project directory. "
                         "Missing expected files should be reported clearly instead of invented. "
-                        "Generated files, verification files, previous review outputs, and application packages "
-                        "should be excluded so they do not pollute the next run. "
+                        "Generated files, verification files, previous review outputs, LaTeX outputs, "
+                        "PDF outputs, repair reports, and diagnostic files should be excluded so they "
+                        "do not pollute the next run. "
                         f"Original user goal: {goal}"
                     ),
                 },
