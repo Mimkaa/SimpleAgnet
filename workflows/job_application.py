@@ -55,6 +55,7 @@ class JobApplicationWorkflow:
                         "generated_cover_letter.md",
                         "job_application_final_review.md",
                         "application_package.md",
+
                         "cover_letter.tex",
                         "cover_letter.aux",
                         "cover_letter.log",
@@ -65,7 +66,6 @@ class JobApplicationWorkflow:
                         "cover_letter_pdf_compile_result.md",
                         "cover_letter_pdf_verification.md",
 
-                        # add CV generated files here:
                         "tailored_cv.tex",
                         "tailored_cv.aux",
                         "tailored_cv.log",
@@ -73,20 +73,25 @@ class JobApplicationWorkflow:
                         "tailored_cv.pdf",
                         "tailored_cv_pdf_compile_result.md",
                         "tailored_cv_pdf_verification.md",
+                        "tailored_cv_compile_diagnostic.md",
                     ],
                     "exclude_patterns": [
                         "generated_*",
                         "*_verification.md",
                         "job_application_*_review.md",
                         "application_package.md",
+
                         "cover_letter.*",
                         "cover_letter_*_diagnostics.md",
                         "cover_letter_*_context.md",
                         "cover_letter_pdf_*.md",
+
                         "repair_report_*.md",
-                        # add CV generated patterns here:
+
                         "tailored_cv.*",
                         "tailored_cv_pdf_*.md",
+                        "tailored_cv_*_diagnostic.md",
+                        "tailored_cv_*_diagnostics.md",
                     ],
                     "outputs": ["job_application_input_inventory.md"],
                     "reason": (
