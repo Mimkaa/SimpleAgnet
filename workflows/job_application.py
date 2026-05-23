@@ -64,6 +64,15 @@ class JobApplicationWorkflow:
                         "cover_letter_pdf_diagnostics.md",
                         "cover_letter_pdf_compile_result.md",
                         "cover_letter_pdf_verification.md",
+
+                        # add CV generated files here:
+                        "tailored_cv.tex",
+                        "tailored_cv.aux",
+                        "tailored_cv.log",
+                        "tailored_cv.out",
+                        "tailored_cv.pdf",
+                        "tailored_cv_pdf_compile_result.md",
+                        "tailored_cv_pdf_verification.md",
                     ],
                     "exclude_patterns": [
                         "generated_*",
@@ -75,6 +84,9 @@ class JobApplicationWorkflow:
                         "cover_letter_*_context.md",
                         "cover_letter_pdf_*.md",
                         "repair_report_*.md",
+                        # add CV generated patterns here:
+                        "tailored_cv.*",
+                        "tailored_cv_pdf_*.md",
                     ],
                     "outputs": ["job_application_input_inventory.md"],
                     "reason": (
@@ -465,6 +477,113 @@ class JobApplicationWorkflow:
                     "outputs": ["cover_letter_pdf_verification.md"],
                     "reason": (
                         "Verify that cover_letter.pdf exists and is not empty."
+                    ),
+                },
+            ),
+
+            Task(
+                title="Create LaTeX tailored CV",
+                description=(
+                    "Create a tailored LaTeX CV from the structured job application context."
+                ),
+                inputs=[
+                    "structured_job_application_context.md",
+                    "job_application_readiness_report.md",
+                    "application_package.md",
+                ],
+                outputs=["tailored_cv.tex"],
+                tool_hint="artifact_transform",
+                kind="normal",
+                action={
+                    "tool": "artifact_transform",
+                    "inputs": [
+                        "structured_job_application_context.md",
+                        "job_application_readiness_report.md",
+                        "application_package.md",
+                    ],
+                    "outputs": ["tailored_cv.tex"],
+                    "reason": (
+                        "Create a clean standalone LaTeX CV tailored to the job posting. "
+                        "Output only valid LaTeX source code, no markdown code fences and no explanations. "
+                        "Use only this document class: \\documentclass[11pt,a4paper]{article}. "
+                        "Use standard packages only: geometry, parskip, hyperref, enumitem if needed. "
+                        "The CV should contain only facts from the input artifacts. "
+                        "Do not invent work experience, education, skills, contact details, links, grades, dates, or certifications. "
+                        "It is allowed to reorder and emphasize existing skills and projects based on the job posting. "
+                        "Include sections such as Profile, Education, Skills, Projects, Experience, and Languages if information is available. "
+                        "For missing contact details, use safe LaTeX placeholders like \\textnormal{\\lbrack{}Email address\\rbrack{}}. "
+                        "Do not use raw square-bracket placeholders like [Email address]. "
+                        "Do not include a photo or image yet. "
+                        "Escape LaTeX special characters where needed. "
+                        "The result must be compilable by pdflatex with exit code 0."
+                    ),
+                },
+            ),
+
+            Task(
+                title="Write LaTeX tailored CV to target project",
+                description=(
+                    "Write the generated LaTeX CV into the target project folder."
+                ),
+                inputs=["tailored_cv.tex"],
+                outputs=[],
+                tool_hint="materialize_artifact",
+                kind="normal",
+                action={
+                    "tool": "materialize_artifact",
+                    "input": "tailored_cv.tex",
+                    "root": "target_project",
+                    "target_file": "tailored_cv.tex",
+                    "reason": (
+                        "Materialize the tailored LaTeX CV into the target project folder."
+                    ),
+                },
+            ),
+
+            Task(
+                title="Compile LaTeX tailored CV to PDF",
+                description=(
+                    "Compile the generated LaTeX CV into a PDF in the target project folder."
+                ),
+                inputs=["tailored_cv.tex"],
+                outputs=["tailored_cv_pdf_compile_result.md"],
+                tool_hint="shell",
+                kind="normal",
+                action={
+                    "tool": "shell",
+                    "command": (
+                        "python -c \"from pathlib import Path; "
+                        "[p.unlink() for p in [Path('tailored_cv.aux'), Path('tailored_cv.out'), Path('tailored_cv.log')] if p.exists()]\" "
+                        "&& pdflatex -interaction=nonstopmode -halt-on-error tailored_cv.tex"
+                    ),
+                    "outputs": ["tailored_cv_pdf_compile_result.md"],
+                    "reason": (
+                        "Compile tailored_cv.tex into tailored_cv.pdf using pdflatex."
+                    ),
+                },
+            ),
+
+            Task(
+                title="Verify compiled tailored CV PDF",
+                description=(
+                    "Verify that tailored_cv.pdf was created in the target project folder."
+                ),
+                inputs=["tailored_cv_pdf_compile_result.md"],
+                outputs=["tailored_cv_pdf_verification.md"],
+                tool_hint="shell",
+                kind="normal",
+                action={
+                    "tool": "shell",
+                    "command": (
+                        "python -c \"from pathlib import Path; "
+                        "p=Path('tailored_cv.pdf'); "
+                        "print('exists=', p.exists()); "
+                        "print('size=', p.stat().st_size if p.exists() else 0); "
+                        "raise SystemExit(0 if p.exists() and p.stat().st_size > 0 else 1)\""
+                    ),
+                    "outputs": ["tailored_cv_pdf_verification.md"],
+                    "reason": (
+                        "Verify that tailored_cv.pdf exists and is not empty."
                     ),
                 },
             ),

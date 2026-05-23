@@ -553,6 +553,7 @@ class AgentLoop:
             "job_application_final_review.md",
             "cover_letter_verification_requirements.md",
             "cover_letter.tex",
+            "tailored_cv.tex",
         }
 
         try:
@@ -620,7 +621,7 @@ class AgentLoop:
         if output_name in outputs_to_strip_fences:
             content = self.strip_markdown_code_fences(content)
 
-        if output_name == "cover_letter.tex":
+        if output_name.endswith(".tex"):
             content = self.clean_latex_artifact(content)
 
         artifact_path = self.artifacts.write_text(output_name, content)
