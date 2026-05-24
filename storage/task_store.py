@@ -36,6 +36,42 @@ class TaskStore:
 
         raise ValueError(f"Task not found: {task_id}")
 
+    def assign_workflow_group_after(self, task_id, workflow_group_id):
+        tasks = self._load()
+
+        found = False
+
+        for task in tasks:
+            if task.id == task_id:
+                found = True
+                continue
+
+            if found and task.status == "pending" and task.workflow_group_id is None:
+                task.workflow_group_id = workflow_group_id
+
+        if not found:
+            raise ValueError(f"Task not found: {task_id}")
+
+        self._save(tasks)
+
+    def block_pending_in_workflow_group(self, workflow_group_id, blocked_by_task_id, reason):
+        tasks = self._load()
+        blocked_tasks = []
+
+        for task in tasks:
+            if (
+                    task.status == "pending"
+                    and task.workflow_group_id == workflow_group_id
+            ):
+                task.status = "blocked"
+                task.blocked_by_task_id = blocked_by_task_id
+                task.blocked_reason = reason
+                blocked_tasks.append(task)
+
+        self._save(tasks)
+
+        return blocked_tasks
+
     def list_tasks(self):
         return self._load()
 
@@ -49,7 +85,10 @@ class TaskStore:
         tasks = self._load()
 
         before = len(tasks)
-        tasks = [task for task in tasks if task.status != "pending"]
+        tasks = [
+            task for task in tasks
+            if task.status not in ("pending", "blocked")
+        ]
         removed = before - len(tasks)
 
         self._save(tasks)

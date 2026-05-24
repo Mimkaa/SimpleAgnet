@@ -1915,6 +1915,26 @@ class AgentLoop:
         else:
             self.mark_failed(task.id, verification.reason)
 
+            workflow_group_id = getattr(task, "workflow_group_id", None)
+
+            if workflow_group_id:
+                blocked_tasks = self.task_store.block_pending_in_workflow_group(
+                    workflow_group_id=workflow_group_id,
+                    blocked_by_task_id=task.id,
+                    reason=verification.reason,
+                )
+
+                result["blocked_tasks"] = [
+                    {
+                        "id": blocked_task.id,
+                        "title": blocked_task.title,
+                        "status": blocked_task.status,
+                        "blocked_by_task_id": blocked_task.blocked_by_task_id,
+                        "blocked_reason": blocked_task.blocked_reason,
+                    }
+                    for blocked_task in blocked_tasks
+                ]
+
             if getattr(task, "kind", "normal") != "repair":
                 repair_task = self.create_repair_task_from_failure(
                     failed_task=task,
@@ -2009,7 +2029,18 @@ class AgentLoop:
                 "message": f"Subworkflow produced no tasks for goal: {goal}",
             }
 
+        workflow_group_id = task.workflow_group_id or task.id
+
+        for sub_task in sub_tasks:
+            sub_task.parent_task_id = task.id
+            sub_task.workflow_group_id = workflow_group_id
+
         self.task_store.insert_tasks_after(task.id, sub_tasks)
+
+        self.task_store.assign_workflow_group_after(
+            task_id=task.id,
+            workflow_group_id=workflow_group_id,
+        )
 
         self.event_log.write(
             "subworkflow_expanded",

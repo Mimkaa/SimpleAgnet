@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 from typing import Literal
 
-TaskStatus = Literal["pending", "running", "done", "failed"]
+TaskStatus = Literal["pending", "running", "done", "failed", "blocked"]
 
 
 @dataclass
@@ -20,6 +20,12 @@ class Task:
     action: dict = field(default_factory=dict)
 
     kind: str = "normal"
+
+    # Workflow orchestration metadata
+    parent_task_id: str | None = None
+    workflow_group_id: str | None = None
+    blocked_by_task_id: str | None = None
+    blocked_reason: str | None = None
 
     def to_dict(self):
         return asdict(self)
