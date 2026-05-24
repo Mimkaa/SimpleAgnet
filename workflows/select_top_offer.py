@@ -81,19 +81,33 @@ class SelectTopOfferWorkflow:
                 action={
                     "tool": "shell",
                     "command": (
-                        "python -c \"from pathlib import Path; "
-                        "src=Path('job_offers/offer_2.md'); "
+                        "python -c \""
+                        "from pathlib import Path; "
+                        "import re; "
+                        "ranking=Path('job_offer_ranking.md').read_text(encoding='utf-8'); "
+                        "patterns=["
+                        "r'\\|\\s*1\\s*\\|\\s*Offer\\s+(\\d+)\\s*\\|', "
+                        "r'(?m)^#\\s*1\\.\\s*Offer\\s+(\\d+)\\b', "
+                        "r'job_offers[/\\\\\\\\]offer_(\\d+)\\.md'"
+                        "]; "
+                        "matches=[re.search(p, ranking, re.IGNORECASE) for p in patterns]; "
+                        "nums=[m.group(1) for m in matches if m]; "
+                        "assert nums, 'Could not detect top-ranked offer from job_offer_ranking.md'; "
+                        "src=Path('job_offers') / f'offer_{nums[0]}.md'; "
                         "dst=Path('job_posting.md'); "
+                        "assert src.exists(), f'Detected top offer file does not exist: {src}'; "
                         "text=src.read_text(encoding='utf-8'); "
                         "dst.write_text(text, encoding='utf-8'); "
                         "print('selected=', src); "
                         "print('written=', dst); "
                         "print('chars=', len(text)); "
-                        "raise SystemExit(0 if dst.exists() and len(text) > 0 else 1)\""
+                        "raise SystemExit(0 if dst.exists() and len(text) > 0 else 1)"
+                        "\""
                     ),
                     "outputs": ["active_job_posting_selection.md"],
                     "reason": (
-                        "Set the current best-ranked local offer as the active job_posting.md file."
+                        "Read job_offer_ranking.md, detect the offer ranked first, and copy that offer "
+                        "into job_posting.md as the active job posting."
                     ),
                 },
             ),
