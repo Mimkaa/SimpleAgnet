@@ -115,7 +115,7 @@ class SelectTopOfferWorkflow:
             Task(
                 title="Verify active job posting",
                 description=(
-                    "Verify that job_posting.md now contains the selected top-ranked offer."
+                    "Verify that job_posting.md now contains a valid selected job offer."
                 ),
                 inputs=["active_job_posting_selection.md"],
                 outputs=["active_job_posting_verification.md"],
@@ -126,14 +126,15 @@ class SelectTopOfferWorkflow:
                     "root": "target_project",
                     "target_file": "job_posting.md",
                     "must_contain": [
-                        "Software Engineering Student Assistant",
-                        "DataTools Basel GmbH",
-                        "Python",
-                        "internal software tools",
+                        "## Position",
+                        "## Company",
+                        "## Location",
                     ],
                     "outputs": ["active_job_posting_verification.md"],
                     "reason": (
-                        "Confirm that job_posting.md contains the selected top-ranked offer."
+                        "Confirm that job_posting.md contains a valid selected job offer structure. "
+                        "Use generic section checks instead of hardcoded company-specific text so this works "
+                        "for whichever offer is ranked first."
                     ),
                 },
             ),
