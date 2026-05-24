@@ -6,6 +6,7 @@ from agent.agent_loop import AgentLoop
 from agent.interfaces.cli_interface import CliInterface
 from agent.workflows.firewall_project import FirewallProjectWorkflow
 from agent.workflows.job_application import JobApplicationWorkflow
+from agent.workflows.job_offer_ranking import JobOfferRankingWorkflow
 
 
 def main():
@@ -20,7 +21,8 @@ def main():
         event_log=event_log,
         workflows=[
             FirewallProjectWorkflow(),
-            JobApplicationWorkflow()
+            JobApplicationWorkflow(),
+            JobOfferRankingWorkflow(),
         ],
         artifacts=artifacts,
         target_project_dir=cfg.TARGET_PROJECT_DIR,
