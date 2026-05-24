@@ -106,6 +106,16 @@ class ActionSelector:
                 ),
             }
 
+        if tool == "subworkflow":
+            return {
+                "tool": "subworkflow",
+                "goal": action_config["goal"],
+                "reason": action_config.get(
+                    "reason",
+                    "Task provided explicit subworkflow action.",
+                ),
+            }
+
         if tool == "verify_target_file":
             return {
                 "tool": "verify_target_file",

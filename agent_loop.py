@@ -554,6 +554,9 @@ class AgentLoop:
             "cover_letter_verification_requirements.md",
             "cover_letter.tex",
             "tailored_cv.tex",
+            "job_offer_summaries.md",
+            "job_offer_ranking.md",
+            "top_offer_selection_report.md",
         }
 
         try:
@@ -1849,6 +1852,9 @@ class AgentLoop:
         elif action["tool"] == "materialize_artifact":
             result = self.materialize_artifact(task, action)
 
+        elif action["tool"] == "subworkflow":
+            result = self.execute_subworkflow(task, action)
+
         else:
             return {
                 "ok": False,
@@ -1972,6 +1978,68 @@ class AgentLoop:
             self.mark_failed(apply_task.id, verification.reason)
 
         return result
+
+    def execute_subworkflow(self, task, action: dict):
+        goal = action.get("goal")
+
+        if not goal:
+            return {
+                "ok": False,
+                "message": "Subworkflow action missing goal.",
+            }
+
+        matching_workflow = None
+
+        for workflow in self.workflows:
+            if workflow.can_handle(goal):
+                matching_workflow = workflow
+                break
+
+        if matching_workflow is None:
+            return {
+                "ok": False,
+                "message": f"No workflow can handle subworkflow goal: {goal}",
+            }
+
+        sub_tasks = matching_workflow.create_tasks(goal)
+
+        if not sub_tasks:
+            return {
+                "ok": False,
+                "message": f"Subworkflow produced no tasks for goal: {goal}",
+            }
+
+        self.task_store.insert_tasks_after(task.id, sub_tasks)
+
+        self.event_log.write(
+            "subworkflow_expanded",
+            {
+                "task_id": task.id,
+                "goal": goal,
+                "workflow": matching_workflow.__class__.__name__,
+                "created_tasks": [
+                    {
+                        "id": sub_task.id,
+                        "title": sub_task.title,
+                    }
+                    for sub_task in sub_tasks
+                ],
+            },
+        )
+
+        return {
+            "ok": True,
+            "message": f"Expanded subworkflow goal: {goal}",
+            "workflow": matching_workflow.__class__.__name__,
+            "created_task_count": len(sub_tasks),
+            "created_tasks": [
+                {
+                    "id": sub_task.id,
+                    "title": sub_task.title,
+                }
+                for sub_task in sub_tasks
+            ],
+        }
 
     def create_fallback_task_from_goal(self, goal: str) -> Task:
         lower_goal = goal.lower()

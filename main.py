@@ -8,6 +8,7 @@ from agent.workflows.firewall_project import FirewallProjectWorkflow
 from agent.workflows.job_application import JobApplicationWorkflow
 from agent.workflows.job_offer_ranking import JobOfferRankingWorkflow
 from agent.workflows.select_top_offer import SelectTopOfferWorkflow
+from agent.workflows.best_offer_application_workflow import BestOfferApplicationWorkflow
 
 
 def main():
@@ -21,10 +22,11 @@ def main():
         task_store=task_store,
         event_log=event_log,
         workflows=[
-            FirewallProjectWorkflow(),
-            JobApplicationWorkflow(),
+            BestOfferApplicationWorkflow(),
             JobOfferRankingWorkflow(),
             SelectTopOfferWorkflow(),
+            FirewallProjectWorkflow(),
+            JobApplicationWorkflow(),
         ],
         artifacts=artifacts,
         target_project_dir=cfg.TARGET_PROJECT_DIR,

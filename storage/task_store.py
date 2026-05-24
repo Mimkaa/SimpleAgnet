@@ -25,6 +25,17 @@ class TaskStore:
         tasks.extend(new_tasks)
         self._save(tasks)
 
+    def insert_tasks_after(self, task_id, new_tasks):
+        tasks = self._load()
+
+        for index, task in enumerate(tasks):
+            if task.id == task_id:
+                tasks[index + 1:index + 1] = new_tasks
+                self._save(tasks)
+                return new_tasks
+
+        raise ValueError(f"Task not found: {task_id}")
+
     def list_tasks(self):
         return self._load()
 
