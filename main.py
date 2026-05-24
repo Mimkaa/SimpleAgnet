@@ -9,6 +9,7 @@ from agent.workflows.job_application import JobApplicationWorkflow
 from agent.workflows.job_offer_ranking import JobOfferRankingWorkflow
 from agent.workflows.select_top_offer import SelectTopOfferWorkflow
 from agent.workflows.best_offer_application_workflow import BestOfferApplicationWorkflow
+from agent.workflows.application_tracker_workflow import ApplicationTrackerWorkflow
 
 
 def main():
@@ -25,6 +26,7 @@ def main():
             BestOfferApplicationWorkflow(),
             JobOfferRankingWorkflow(),
             SelectTopOfferWorkflow(),
+            ApplicationTrackerWorkflow(),
             FirewallProjectWorkflow(),
             JobApplicationWorkflow(),
         ],

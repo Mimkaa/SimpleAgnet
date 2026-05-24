@@ -57,4 +57,20 @@ class BestOfferApplicationWorkflow:
                     ),
                 },
             ),
+
+            Task(
+                title="Update application tracker",
+                description="Record the prepared application in the applications tracker.",
+                inputs=[],
+                outputs=[],
+                tool_hint="subworkflow",
+                kind="normal",
+                action={
+                    "tool": "subworkflow",
+                    "goal": "update application tracker",
+                    "reason": (
+                        "Record the generated application package in applications_tracker.md."
+                    ),
+                },
+            ),
         ]
