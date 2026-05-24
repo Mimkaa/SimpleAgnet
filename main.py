@@ -7,6 +7,7 @@ from agent.interfaces.cli_interface import CliInterface
 from agent.workflows.firewall_project import FirewallProjectWorkflow
 from agent.workflows.job_application import JobApplicationWorkflow
 from agent.workflows.job_offer_ranking import JobOfferRankingWorkflow
+from agent.workflows.select_top_offer import SelectTopOfferWorkflow
 
 
 def main():
@@ -23,6 +24,7 @@ def main():
             FirewallProjectWorkflow(),
             JobApplicationWorkflow(),
             JobOfferRankingWorkflow(),
+            SelectTopOfferWorkflow(),
         ],
         artifacts=artifacts,
         target_project_dir=cfg.TARGET_PROJECT_DIR,

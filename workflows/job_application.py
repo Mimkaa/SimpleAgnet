@@ -55,6 +55,7 @@ class JobApplicationWorkflow:
                         "generated_cover_letter.md",
                         "job_application_final_review.md",
                         "application_package.md",
+                        "job_offer_ranking.md",
 
                         "cover_letter.tex",
                         "cover_letter.aux",
@@ -81,6 +82,7 @@ class JobApplicationWorkflow:
                         "*_verification.md",
                         "job_application_*_review.md",
                         "application_package.md",
+                        "job_offer_ranking.md",
 
                         "cover_letter.*",
                         "cover_letter_*_diagnostics.md",
