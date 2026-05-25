@@ -13,7 +13,7 @@ from agent.workflows.application_tracker_workflow import ApplicationTrackerWorkf
 from agent.workflows.add_pasted_job_offer_workflow import AddPastedJobOfferWorkflow
 from agent.workflows.clean_duplicate_job_offers_workflow import CleanDuplicateJobOffersWorkflow
 from agent.workflows.archive_duplicate_job_offers_workflow import ArchiveDuplicateJobOffersWorkflow
-
+from agent.workflows.clean_best_offer_application_workflow import CleanBestOfferApplicationWorkflow
 
 def main():
     cfg = load_config()
@@ -26,6 +26,7 @@ def main():
         task_store=task_store,
         event_log=event_log,
         workflows=[
+            CleanBestOfferApplicationWorkflow(),
             BestOfferApplicationWorkflow(),
             JobOfferRankingWorkflow(),
             SelectTopOfferWorkflow(),

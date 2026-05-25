@@ -58,14 +58,15 @@ class ArchiveDuplicateJobOffersWorkflow:
                         "Create a precise plan for archiving duplicate job offers. "
                         "Use only facts from the duplicate report and local offer files. "
                         "Do not invent files. Do not recommend deletion. "
-                        "The plan should identify exactly one canonical file to keep and the duplicate files to archive. "
+                        "The plan should identify exactly one canonical file to keep and any duplicate files to archive. "
+                        "If there are no duplicate files to archive, say that clearly. "
                         "Output only markdown content, no explanations and no code fences. "
                         "Use this exact structure:\n\n"
                         "# Duplicate Job Offers Archive Plan\n\n"
                         "## Canonical File To Keep\n"
                         "<one file path, for example job_offers/offer_10.md>\n\n"
                         "## Files To Archive\n"
-                        "- <file path>\n\n"
+                        "- <file path, or None>\n\n"
                         "## Safety Notes\n"
                         "- This plan archives duplicates only; it does not delete files.\n"
                         "- Manual review is recommended before running the archive step.\n"
@@ -96,27 +97,29 @@ class ArchiveDuplicateJobOffersWorkflow:
                         "canonical=(m.group(1).replace('\\\\','/') if m else ('job_offers/offer_10.md' if 'job_offers/offer_10.md' in files else None)); "
                         "assert canonical, 'Could not determine canonical file to keep'; "
                         "archive_files=[file for file in files if file != canonical]; "
-                        "assert archive_files, 'No duplicate files to archive were found in plan'; "
                         "canonical_text='# Duplicate Job Offers Archive Plan\\n\\n'; "
                         "canonical_text += '## Canonical File To Keep\\n' + canonical + '\\n\\n'; "
                         "canonical_text += '## Files To Archive\\n'; "
-                        "canonical_text += ''.join('- ' + file + '\\n' for file in archive_files); "
+                        "canonical_text += (''.join('- ' + file + '\\n' for file in archive_files) if archive_files else '- None\\n'); "
                         "canonical_text += '\\n'; "
                         "canonical_text += '## Safety Notes\\n'; "
                         "canonical_text += '- Archive only; do not delete files.\\n'; "
                         "canonical_text += '- Keep the canonical file in job_offers.\\n'; "
-                        "canonical_text += '- Move duplicate files to job_offers_archived.\\n'; "
+                        "canonical_text += '- Move duplicate files to job_offers_archived when duplicate files exist.\\n'; "
+                        "canonical_text += '- If no duplicate files exist, the folder is already clean.\\n'; "
                         "target.write_text(canonical_text, encoding='utf-8'); "
                         "print('target=', target); "
                         "print('canonical=', canonical); "
                         "print('archive_count=', len(archive_files)); "
                         "[print('archive=', file) for file in archive_files]; "
-                        "raise SystemExit(0 if target.exists() and archive_files else 1)"
+                        "print('already_clean_plan=', len(archive_files)==0); "
+                        "raise SystemExit(0 if target.exists() else 1)"
                         "\""
                     ),
                     "outputs": ["duplicate_job_offers_archive_plan_write_result.md"],
                     "reason": (
-                        "Convert the AI archive plan into a deterministic canonical plan file."
+                        "Convert the AI archive plan into a deterministic canonical plan file. "
+                        "Allow zero archive files because that means the active job_offers folder is already clean."
                     ),
                 },
             ),
@@ -145,7 +148,7 @@ class ArchiveDuplicateJobOffersWorkflow:
                         "canonical=Path(m.group(1).strip().replace('\\\\','/')); "
                         "assert canonical.exists(), f'Canonical file missing: {canonical}'; "
                         "archive_files=[Path(x.strip().replace('\\\\','/')) for x in re.findall(r'-\\s*(job_offers[/\\\\]offer_\\d+\\.md)', text)]; "
-                        "assert archive_files, 'No archive files listed'; "
+                        "print('archive_file_count=', len(archive_files)); "
                         "to_move=[src for src in archive_files if src != canonical and src.exists()]; "
                         "archive_dir=Path('job_offers_archived') / datetime.now().strftime('%Y%m%d_%H%M%S'); "
                         "archive_dir.mkdir(parents=True, exist_ok=True); "
@@ -165,7 +168,7 @@ class ArchiveDuplicateJobOffersWorkflow:
                     "outputs": ["duplicate_job_offers_archive_result.md"],
                     "reason": (
                         "Move duplicate offer files into a timestamped folder under job_offers_archived "
-                        "and keep the canonical file in place. If duplicates are already gone, pass safely."
+                        "and keep the canonical file in place. If duplicates are already gone or none are listed, pass safely."
                     ),
                 },
             ),
