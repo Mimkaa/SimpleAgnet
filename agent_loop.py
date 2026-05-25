@@ -561,6 +561,7 @@ class AgentLoop:
             "new_job_offer_canonical.md",
             "duplicate_job_offers_report.md",
             "duplicate_job_offers_canonical_report.md",
+            "duplicate_job_offers_archive_plan.md",
         }
 
         try:
@@ -627,6 +628,7 @@ class AgentLoop:
             "new_job_offer_canonical.md",
             "duplicate_job_offers_report.md",
             "duplicate_job_offers_canonical_report.md",
+            "duplicate_job_offers_archive_plan.md",
         }
 
         if output_name in outputs_to_strip_fences:
