@@ -558,6 +558,9 @@ class AgentLoop:
             "job_offer_ranking.md",
             "top_offer_selection_report.md",
             "new_job_offer_normalized.md",
+            "new_job_offer_canonical.md",
+            "duplicate_job_offers_report.md",
+            "duplicate_job_offers_canonical_report.md",
         }
 
         try:
@@ -621,6 +624,9 @@ class AgentLoop:
             "application_package.md",
             "cover_letter.tex",
             "new_job_offer_normalized.md",
+            "new_job_offer_canonical.md",
+            "duplicate_job_offers_report.md",
+            "duplicate_job_offers_canonical_report.md",
         }
 
         if output_name in outputs_to_strip_fences:

@@ -11,6 +11,7 @@ from agent.workflows.select_top_offer import SelectTopOfferWorkflow
 from agent.workflows.best_offer_application_workflow import BestOfferApplicationWorkflow
 from agent.workflows.application_tracker_workflow import ApplicationTrackerWorkflow
 from agent.workflows.add_pasted_job_offer_workflow import AddPastedJobOfferWorkflow
+from agent.workflows.clean_duplicate_job_offers_workflow import CleanDuplicateJobOffersWorkflow
 
 
 def main():
@@ -29,6 +30,7 @@ def main():
             SelectTopOfferWorkflow(),
             ApplicationTrackerWorkflow(),
             AddPastedJobOfferWorkflow(),
+            CleanDuplicateJobOffersWorkflow(),
             FirewallProjectWorkflow(),
             JobApplicationWorkflow(),
         ],
