@@ -549,6 +549,19 @@ class AgentLoop:
         output_name = outputs[0]
 
         is_critical = bool(action.get("critical", False))
+        strip_fences = bool(action.get("strip_fences", False))
+
+        self.event_log.write(
+            "artifact_transform_policy",
+            {
+                "task_id": task.id,
+                "output": output_name,
+                "critical_from_action": is_critical,
+                "strip_fences_from_action": strip_fences,
+                "is_critical": is_critical,
+                "strip_fences": strip_fences,
+            },
+        )
 
         try:
             content = self.artifact_analyzer.analyze(
@@ -605,8 +618,6 @@ class AgentLoop:
                     input_contents=input_contents,
                 )
 
-        strip_fences = bool(action.get("strip_fences", False))
-
         if strip_fences:
             content = self.strip_markdown_code_fences(content)
 
@@ -622,6 +633,8 @@ class AgentLoop:
                 "artifact": str(artifact_path),
                 "reason": "Generated artifact from input artifacts.",
                 "analyzer": analyzer_used,
+                "critical": is_critical,
+                "strip_fences": strip_fences,
             },
         )
 
