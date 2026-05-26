@@ -548,21 +548,7 @@ class AgentLoop:
 
         output_name = outputs[0]
 
-        critical_outputs = {
-            "tailored_cover_letter.md",
-            "job_application_final_review.md",
-            "cover_letter_verification_requirements.md",
-            "cover_letter.tex",
-            "tailored_cv.tex",
-            "job_offer_summaries.md",
-            "job_offer_ranking.md",
-            "top_offer_selection_report.md",
-            "new_job_offer_normalized.md",
-            "new_job_offer_canonical.md",
-            "duplicate_job_offers_report.md",
-            "duplicate_job_offers_canonical_report.md",
-            "duplicate_job_offers_archive_plan.md",
-        }
+        is_critical = bool(action.get("critical", False))
 
         try:
             content = self.artifact_analyzer.analyze(
@@ -588,13 +574,13 @@ class AgentLoop:
                     "error": str(e),
                     "fallback": (
                         "blocked_for_critical_output"
-                        if output_name in critical_outputs
+                        if is_critical
                         else "simple_artifact_analysis"
                     ),
                 },
             )
 
-            if output_name in critical_outputs:
+            if is_critical:
                 return {
                     "ok": False,
                     "message": (
@@ -619,19 +605,9 @@ class AgentLoop:
                     input_contents=input_contents,
                 )
 
-        outputs_to_strip_fences = {
-            "tailored_cover_letter.md",
-            "generated_cover_letter.md",
-            "application_package.md",
-            "cover_letter.tex",
-            "new_job_offer_normalized.md",
-            "new_job_offer_canonical.md",
-            "duplicate_job_offers_report.md",
-            "duplicate_job_offers_canonical_report.md",
-            "duplicate_job_offers_archive_plan.md",
-        }
+        strip_fences = bool(action.get("strip_fences", False))
 
-        if output_name in outputs_to_strip_fences:
+        if strip_fences:
             content = self.strip_markdown_code_fences(content)
 
         if output_name.endswith(".tex"):

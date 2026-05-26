@@ -60,6 +60,8 @@ class FirewallProjectWorkflow:
                     "outputs": [
                         "entry_point.md",
                     ],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": "Analyze project structure summary to identify the likely entry point.",
                 },
             ),
@@ -83,6 +85,8 @@ class FirewallProjectWorkflow:
                     "outputs": [
                         "core_components.md",
                     ],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": "Analyze project structure summary to map core components.",
                 },
             ),
@@ -137,6 +141,8 @@ class FirewallProjectWorkflow:
                     "outputs": [
                         "confirmed_runtime_flow.md",
                     ],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": "Analyze source snapshot to confirm actual runtime flow.",
                 },
             ),
@@ -162,6 +168,8 @@ class FirewallProjectWorkflow:
                     "outputs": [
                         "packet_flow.md",
                     ],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": "Trace one packet/request through the system using confirmed flow and component map.",
                 },
             ),
@@ -187,6 +195,8 @@ class FirewallProjectWorkflow:
                     "outputs": [
                         "safe_change_suggestion.md",
                     ],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": "Suggest one tiny safe code/logging change based on confirmed flow and packet/request trace.",
                 },
             ),

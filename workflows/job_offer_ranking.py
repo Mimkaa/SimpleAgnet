@@ -72,6 +72,8 @@ class JobOfferRankingWorkflow:
                     "tool": "artifact_transform",
                     "inputs": ["job_offer_inventory.md"],
                     "outputs": ["job_offer_summaries.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Create structured summaries of all job offers and the candidate profile. "
                         "Use only facts from the input inventory. "
@@ -103,6 +105,8 @@ class JobOfferRankingWorkflow:
                         "job_offer_summaries.md",
                     ],
                     "outputs": ["job_offer_ranking.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Rank the job offers by fit for the candidate. "
                         "Use only facts from the input artifacts. "

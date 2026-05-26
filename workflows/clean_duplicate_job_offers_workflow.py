@@ -57,6 +57,8 @@ class CleanDuplicateJobOffersWorkflow:
                     "tool": "artifact_transform",
                     "inputs": ["duplicate_job_offers_context.md"],
                     "outputs": ["duplicate_job_offers_report.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Create a report identifying likely duplicate job offer files. "
                         "Use only facts from the input artifact. "
@@ -86,6 +88,8 @@ class CleanDuplicateJobOffersWorkflow:
                     "tool": "artifact_transform",
                     "inputs": ["duplicate_job_offers_report.md"],
                     "outputs": ["duplicate_job_offers_canonical_report.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Rewrite the duplicate job offers report into a stable canonical markdown structure. "
                         "Use only facts from the input report. "

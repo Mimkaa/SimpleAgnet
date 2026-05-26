@@ -54,6 +54,8 @@ class ArchiveDuplicateJobOffersWorkflow:
                     "tool": "artifact_transform",
                     "inputs": ["duplicate_job_offers_archive_context.md"],
                     "outputs": ["duplicate_job_offers_archive_plan.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Create a precise plan for archiving duplicate job offers. "
                         "Use only facts from the duplicate report and local offer files. "

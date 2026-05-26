@@ -60,6 +60,8 @@ class ApplicationTrackerWorkflow:
                     "tool": "artifact_transform",
                     "inputs": ["application_tracker_context.md"],
                     "outputs": ["application_tracker_entry.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Create one concise application tracker entry from the active job posting "
                         "and final application package context. "

@@ -58,6 +58,8 @@ class SelectTopOfferWorkflow:
                     "tool": "artifact_transform",
                     "inputs": ["top_offer_selection_context.md"],
                     "outputs": ["top_offer_selection_report.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Create a short top-offer selection report. "
                         "Use only the ranking report and local offer files. "

@@ -56,7 +56,6 @@ class JobApplicationWorkflow:
                         "job_application_final_review.md",
                         "application_package.md",
                         "job_offer_ranking.md",
-
                         "cover_letter.tex",
                         "cover_letter.aux",
                         "cover_letter.log",
@@ -66,7 +65,6 @@ class JobApplicationWorkflow:
                         "cover_letter_pdf_diagnostics.md",
                         "cover_letter_pdf_compile_result.md",
                         "cover_letter_pdf_verification.md",
-
                         "tailored_cv.tex",
                         "tailored_cv.aux",
                         "tailored_cv.log",
@@ -83,14 +81,11 @@ class JobApplicationWorkflow:
                         "job_application_*_review.md",
                         "application_package.md",
                         "job_offer_ranking.md",
-
                         "cover_letter.*",
                         "cover_letter_*_diagnostics.md",
                         "cover_letter_*_context.md",
                         "cover_letter_pdf_*.md",
-
                         "repair_report_*.md",
-
                         "tailored_cv.*",
                         "tailored_cv_pdf_*.md",
                         "tailored_cv_*_diagnostic.md",
@@ -124,6 +119,8 @@ class JobApplicationWorkflow:
                     "tool": "artifact_transform",
                     "inputs": ["job_application_input_inventory.md"],
                     "outputs": ["structured_job_application_context.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Extract a structured job application context from the input inventory. "
                         "Use only facts present in the local files. "
@@ -157,6 +154,8 @@ class JobApplicationWorkflow:
                         "structured_job_application_context.md",
                     ],
                     "outputs": ["job_application_readiness_report.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Create a readiness report for the job application request. "
                         "Explain which inputs are available, which are missing, and whether "
@@ -188,6 +187,8 @@ class JobApplicationWorkflow:
                         "job_application_readiness_report.md",
                     ],
                     "outputs": ["tailored_cover_letter.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Draft a job cover letter using only available local data. "
                         "Use the CV/profile information and the job posting if they are available. "
@@ -221,6 +222,8 @@ class JobApplicationWorkflow:
                         "tailored_cover_letter.md",
                     ],
                     "outputs": ["job_application_final_review.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Review the final job application draft. "
                         "Check for unsupported claims, missing placeholders, weak wording, "
@@ -251,6 +254,8 @@ class JobApplicationWorkflow:
                         "tailored_cover_letter.md",
                     ],
                     "outputs": ["cover_letter_verification_requirements.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Create simple verification requirements for the generated cover letter. "
                         "The output must use exactly this format and no other sections:\n\n"
@@ -363,6 +368,8 @@ class JobApplicationWorkflow:
                         "materialized_cover_letter_verification.md",
                     ],
                     "outputs": ["application_package.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Create a clean final job application package. "
                         "The package should contain: "
@@ -399,6 +406,8 @@ class JobApplicationWorkflow:
                         "application_package.md",
                     ],
                     "outputs": ["cover_letter.tex"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Create a clean standalone LaTeX cover letter. "
                         "Output only valid LaTeX source code, no markdown code fences and no explanations. "
@@ -511,6 +520,8 @@ class JobApplicationWorkflow:
                         "application_package.md",
                     ],
                     "outputs": ["tailored_cv.tex"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Create a clean standalone LaTeX CV tailored to the job posting. "
                         "Output only valid LaTeX source code, no markdown code fences and no explanations. "
@@ -624,6 +635,8 @@ class JobApplicationWorkflow:
                         "tailored_cv_pdf_verification.md",
                     ],
                     "outputs": ["final_application_package.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Create a final application package index. "
                         "This file should be a concise dashboard for the user. "

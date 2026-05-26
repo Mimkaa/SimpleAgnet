@@ -83,6 +83,8 @@ class AddPastedJobOfferWorkflow:
                     "tool": "artifact_transform",
                     "inputs": ["new_job_offer_source_snapshot.md"],
                     "outputs": ["new_job_offer_normalized.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Normalize the pasted job offer into a clean markdown job offer summary. "
                         "Use only facts from the input. "
@@ -109,6 +111,8 @@ class AddPastedJobOfferWorkflow:
                     "tool": "artifact_transform",
                     "inputs": ["new_job_offer_normalized.md"],
                     "outputs": ["new_job_offer_canonical.md"],
+                    "critical": True,
+                    "strip_fences": True,
                     "reason": (
                         "Rewrite the normalized job offer into the required canonical format. "
                         "Use only facts from the input artifact. "
