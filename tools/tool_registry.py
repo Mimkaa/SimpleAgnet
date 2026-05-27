@@ -6,6 +6,7 @@ class ToolRegistry:
         self._tools[name] = handler
 
     def has(self, name):
+        """Return True if a tool with this name is registered."""
         return name in self._tools
 
     def run(self, name, task, action):
