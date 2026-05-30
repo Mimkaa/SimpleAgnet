@@ -11,6 +11,7 @@ from agent.tools.file_tool import FileTool
 from agent.analyzers.openai_artifact_analyzer import OpenAIArtifactAnalyzer
 from agent.planners.openai_task_planner import OpenAITaskPlanner
 from pathlib import Path
+from agent.tools.registry_setup import build_tool_registry
 
 
 class AgentLoop:
@@ -30,6 +31,7 @@ class AgentLoop:
         self.verifier = Verifier()
         self.artifact_analyzer = OpenAIArtifactAnalyzer()
         self.openai_task_planner = OpenAITaskPlanner()
+        self.tool_registry = build_tool_registry(self)
 
 
 
@@ -1817,47 +1819,17 @@ class AgentLoop:
 
         action = self.selector.select_action(task)
 
-        if action["tool"] == "shell":
-            result = self.run_tool(
-                "shell",
-                command=action["command"],
-                cwd=str(self.target_project_dir),
-            )
+        tool_name = action.get("tool")
 
-        elif action["tool"] == "file":
-            result = self.run_tool(
-                "file",
-                action=action["action"],
-                path=action["path"],
-                content=action.get("content", ""),
-            )
+        if not hasattr(self, "tool_registry"):
+            self.tool_registry = build_tool_registry(self)
 
-        elif action["tool"] == "artifact_transform":
-            result = self.transform_artifacts(task, action)
-
-        elif action["tool"] == "source_snapshot":
-            result = self.create_source_snapshot(task, action)
-
-        elif action["tool"] == "apply_safe_change":
-            result = self.apply_safe_change(task, action)
-
-        elif action["tool"] == "verify_target_file":
-            result = self.verify_target_file(task, action)
-
-        elif action["tool"] == "self_improvement_pipeline":
-            result = self.execute_approved_self_improvement_pipeline()
-
-
-        elif action["tool"] == "materialize_artifact":
-            result = self.materialize_artifact(task, action)
-
-        elif action["tool"] == "subworkflow":
-            result = self.execute_subworkflow(task, action)
-
+        if self.tool_registry.has(tool_name):
+            result = self.tool_registry.run(tool_name, task, action)
         else:
             return {
                 "ok": False,
-                "message": "No executable action.",
+                "message": f"No executable action for tool: {tool_name}",
             }
 
         self.maybe_create_artifact(task, action, result)
