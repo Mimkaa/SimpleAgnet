@@ -15,6 +15,9 @@ from agent.workflows.clean_duplicate_job_offers_workflow import CleanDuplicateJo
 from agent.workflows.archive_duplicate_job_offers_workflow import ArchiveDuplicateJobOffersWorkflow
 from agent.workflows.clean_best_offer_application_workflow import CleanBestOfferApplicationWorkflow
 from agent.workflows.agent_update_instructions_workflow import AgentUpdateInstructionsWorkflow
+from agent.workflows.clone_repo_workflow import CloneRepoWorkflow
+from agent.workflows.set_target_project_workflow import SetTargetProjectWorkflow
+
 
 def main():
     cfg = load_config()
@@ -28,6 +31,8 @@ def main():
         event_log=event_log,
         workflows=[
             AgentUpdateInstructionsWorkflow(),
+            CloneRepoWorkflow(),
+            SetTargetProjectWorkflow(),
             CleanBestOfferApplicationWorkflow(),
             BestOfferApplicationWorkflow(),
             JobOfferRankingWorkflow(),

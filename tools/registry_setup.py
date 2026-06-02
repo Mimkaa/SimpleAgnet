@@ -3,22 +3,21 @@ from agent.tools.core_tools import (
     run_apply_safe_change_tool,
     run_artifact_transform_tool,
     run_file_tool,
+    run_git_clone_tool,
     run_materialize_artifact_tool,
     run_self_improvement_pipeline_tool,
+    run_set_target_project_tool,
     run_shell_tool,
     run_source_snapshot_tool,
     run_subworkflow_tool,
     run_verify_target_file_tool,
+    run_list_project_files_tool,
+    run_read_project_file_tool,
+    run_search_project_files_tool,
 )
 
 
 def build_tool_registry(agent_loop) -> ToolRegistry:
-    """
-    Build the core tool registry.
-
-    This registry keeps AgentLoop behavior stable while moving dispatch
-    decisions out of the execute_next_action if/elif chain.
-    """
     registry = ToolRegistry()
 
     registry.register(
@@ -56,6 +55,26 @@ def build_tool_registry(agent_loop) -> ToolRegistry:
     registry.register(
         "subworkflow",
         lambda task, action: run_subworkflow_tool(agent_loop, task, action),
+    )
+    registry.register(
+        "git_clone",
+        lambda task, action: run_git_clone_tool(agent_loop, task, action),
+    )
+    registry.register(
+        "set_target_project",
+        lambda task, action: run_set_target_project_tool(agent_loop, task, action),
+    )
+    registry.register(
+        "list_project_files",
+        lambda task, action: run_list_project_files_tool(agent_loop, task, action),
+    )
+    registry.register(
+        "read_project_file",
+        lambda task, action: run_read_project_file_tool(agent_loop, task, action),
+    )
+    registry.register(
+        "search_project_files",
+        lambda task, action: run_search_project_files_tool(agent_loop, task, action),
     )
 
     return registry

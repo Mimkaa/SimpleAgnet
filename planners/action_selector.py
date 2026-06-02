@@ -2,11 +2,9 @@ class ActionSelector:
     def select_action(self, task):
         action_config = getattr(task, "action", {}) or {}
 
-        # 1. Preferred path: task provides exact executable action.
         if action_config:
             return self.action_from_config(task, action_config)
 
-        # 2. Fallback path: no exact action, use generic tool_hint.
         return self.action_from_hint(task)
 
     def action_from_config(self, task, action_config: dict):
@@ -16,6 +14,7 @@ class ActionSelector:
             return {
                 "tool": "shell",
                 "command": action_config["command"],
+                "cwd": action_config.get("cwd"),
                 "outputs": action_config.get("outputs", task.outputs),
                 "reason": action_config.get(
                     "reason",
@@ -130,16 +129,39 @@ class ActionSelector:
                 ),
             }
 
+        if tool == "git_clone":
+            return {
+                "tool": "git_clone",
+                "repo_url": action_config.get("repo_url") or action_config.get("url"),
+                "url": action_config.get("url"),
+                "destination_root": action_config.get("destination_root", "target_projects"),
+                "depth": action_config.get("depth", 1),
+                "timeout": action_config.get("timeout", 300),
+                "outputs": action_config.get("outputs", task.outputs),
+                "reason": action_config.get(
+                    "reason",
+                    "Task provided explicit Git clone action.",
+                ),
+            }
+
+        if tool == "set_target_project":
+            return {
+                "tool": "set_target_project",
+                "project_name": action_config.get("project_name"),
+                "destination_root": action_config.get("destination_root", "target_projects"),
+                "outputs": action_config.get("outputs", task.outputs),
+                "reason": action_config.get(
+                    "reason",
+                    "Task provided explicit set-target-project action.",
+                ),
+            }
+
         return {
             "tool": "none",
             "reason": f"Unknown explicit tool: {tool}",
         }
 
     def action_from_hint(self, task):
-        """
-        Fallback only. This should become less important over time.
-        """
-
         if task.tool_hint == "analyze_artifact":
             return {
                 "tool": "artifact_transform",

@@ -22,10 +22,68 @@ class CliInterface:
             status = "yes" if exists else "no"
             print(f"- {artifact_name}: {status}")
 
+    def auto_exec(self, max_steps: int = 25):
+        steps = 0
+
+        while steps < max_steps:
+            task = self.agent.next_task()
+
+            if not task:
+                print(f"auto-exec stopped: no pending tasks after {steps} step(s).")
+                return {
+                    "ok": True,
+                    "reason": "No pending tasks.",
+                    "steps": steps,
+                }
+
+            print(f"auto-exec step {steps + 1}: {task.id} - {task.title}")
+
+            result = self.agent.execute_next_action()
+            print(result)
+
+            steps += 1
+
+            verification = result.get("verification", {}) if isinstance(result, dict) else {}
+            verification_status = verification.get("status")
+
+            if not isinstance(result, dict):
+                print("auto-exec stopped: result was not a dictionary.")
+                return {
+                    "ok": False,
+                    "reason": "Result was not a dictionary.",
+                    "steps": steps,
+                    "last_result": result,
+                }
+
+            if result.get("ok") is False:
+                print("auto-exec stopped: result ok=False.")
+                return {
+                    "ok": False,
+                    "reason": "Result ok=False.",
+                    "steps": steps,
+                    "last_result": result,
+                }
+
+            if verification_status and verification_status != "PASS":
+                print(f"auto-exec stopped: verification status={verification_status}.")
+                return {
+                    "ok": False,
+                    "reason": f"Verification status={verification_status}.",
+                    "steps": steps,
+                    "last_result": result,
+                }
+
+        print(f"auto-exec stopped: reached max_steps={max_steps}.")
+        return {
+            "ok": False,
+            "reason": f"Reached max_steps={max_steps}.",
+            "steps": steps,
+        }
+
     def run(self):
         print("Minimal Agent CLI")
         print(
-            "Commands: help, goal <text>, tasks, next, exec, clear-pending, artifact <name>, "
+            "Commands: help, goal <text>, tasks, next, exec, auto-exec [max_steps], clear-pending, artifact <name>, "
             "artifact-exists <name>, artifacts, done <id>, fail <id>, "
             "shell <cmd>, log, exit"
         )
@@ -51,6 +109,7 @@ class CliInterface:
                 print("tasks                  - list tasks")
                 print("next                   - show next pending task + suggested action")
                 print("exec                   - execute next pending task")
+                print("auto-exec [max_steps]  - execute pending tasks until ok=False, verification failure, no pending tasks, or max_steps")
                 print("artifact <name>        - show artifact content")
                 print("artifact-exists <name> - check whether an artifact exists")
                 print("artifacts              - show known important artifacts")
@@ -92,6 +151,24 @@ class CliInterface:
             if line == "exec":
                 result = self.agent.execute_next_action()
                 print(result)
+                continue
+
+            if line == "auto-exec" or line.startswith("auto-exec "):
+                parts = line.split(maxsplit=1)
+                max_steps = 25
+
+                if len(parts) == 2:
+                    try:
+                        max_steps = int(parts[1])
+                    except ValueError:
+                        print("Usage: auto-exec [max_steps]")
+                        continue
+
+                if max_steps < 1:
+                    print("max_steps must be at least 1.")
+                    continue
+
+                self.auto_exec(max_steps=max_steps)
                 continue
 
             if line == "artifacts":

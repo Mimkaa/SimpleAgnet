@@ -2383,6 +2383,70 @@ class AgentLoop:
                 },
             )
 
+
+        if (
+            "list project files" in lower_goal
+            or "show project files" in lower_goal
+            or "list files" in lower_goal
+        ):
+            return Task(
+                title=goal,
+                description="List files in the target project.",
+                tool_hint="list_project_files",
+                kind="normal",
+                action={
+                    "tool": "list_project_files",
+                    "max_files": 100,
+                    "reason": "List files in the target project using the tool registry.",
+                },
+            )
+
+        if (
+            "read project file" in lower_goal
+            or "show project file" in lower_goal
+            or "open project file" in lower_goal
+        ):
+            parts = goal.split()
+            path = parts[-1] if parts else ""
+
+            return Task(
+                title=goal,
+                description="Read a text file from the target project.",
+                tool_hint="read_project_file",
+                kind="normal",
+                action={
+                    "tool": "read_project_file",
+                    "path": path,
+                    "max_chars": 20000,
+                    "reason": "Read a file from the target project using the tool registry.",
+                },
+            )
+        if (
+            "search project files" in lower_goal
+            or "find in project files" in lower_goal
+            or "search files for" in lower_goal
+        ):
+            query = goal
+            for prefix in ["search project files for", "find in project files", "search files for"]:
+                if prefix in lower_goal:
+                    query = goal[lower_goal.index(prefix) + len(prefix):].strip()
+                    break
+            if not query:
+                query = goal
+
+            return Task(
+                title=goal,
+                description="Search text files inside the target project.",
+                tool_hint="search_project_files",
+                kind="normal",
+                action={
+                    "tool": "search_project_files",
+                    "query": query,
+                    "max_files": 300,
+                    "max_matches": 50,
+                    "reason": "Search project files using the tool registry.",
+                },
+            )
         return Task(
             title=goal,
             description="Manually created task from user goal.",
